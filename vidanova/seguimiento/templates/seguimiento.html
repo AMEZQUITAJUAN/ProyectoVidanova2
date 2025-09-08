@@ -1,11 +1,518 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+{% extends 'layout.html' %}
+{% load static %}
+
+{% block title %}{% endblock %}
+
+{% block content %}
+    <link href="{% static 'css/adminboard.css' %}" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        /* Estilos básicos para demostración - tu CSS personalizado irá aquí */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .section { margin-bottom: 30px; }
+        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        .btn.primary { background: #3b82f6; color: white; }
+        .btn.secondary { background: #6b7280; color: white; }
+        .alert { padding: 12px; border-radius: 8px; margin: 8px 0; }
+        .alert.critical { background: #fef2f2; border-left: 4px solid #ef4444; color: #dc2626; }
+        .alert.warning { background: #fffbeb; border-left: 4px solid #f59e0b; color: #d97706; }
+        .alert.success { background: #f0fdf4; border-left: 4px solid #22c55e; color: #16a34a; }
+        .alert.info { background: #eff6ff; border-left: 4px solid #3b82f6; color: #2563eb; }
+    </style>
 </head>
 <body>
-    
+    <div class="container">
+        <!-- Header -->
+        <header class="section">
+            <div class="card">
+                <h1><i class="fas fa-chart-line"></i> Tablero Administrativo</h1>
+            </div>
+        </header>
+
+        <!-- Filtros -->
+        <section class="section">
+            <div class="card">
+                <h2><i class="fas fa-filter"></i> Filtros</h2>
+                <form class="filters">
+                    <div class="grid-4" style="margin-top: 16px;">
+                        <div class="form-group">
+                            <label for="date_from">Desde</label>
+                            <input type="date" id="date_from" name="date_from" value="2024-01-01">
+                        </div>
+                        <div class="form-group">
+                            <label for="date_to">Hasta</label>
+                            <input type="date" id="date_to" name="date_to" value="2024-12-31">
+                        </div>
+                        <div class="form-group">
+                            <label for="status">Estado de la Solicitud</label>
+                            <select id="status" name="status">
+                                <option value="">Todos</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="en_gestion">En gestión</option>
+                                <option value="por_gestionar">Por gestionar</option>
+                                <option value="agendado">Agendado</option>
+                                <option value="realizado">Realizado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="procedure">Tipo de Procedimientos</label>
+                            <select id="procedure" name="procedure">
+                                <option value="">Todos</option>
+                                <option value="cirugia">Cirugía</option>
+                                <option value="radioterapia">Radioterapia</option>
+                                <option value="quimioterapia">Quimioterapia</option>
+                                <option value="consulta">Consulta</option>
+                                <option value="imagenes">Imágenes</option>
+                                <option value="laboratorio">Laboratorio</option>
+                                <option value="patologia">Patología</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Sección Agendamientos -->
+                    <div style="margin-top: 24px;">
+                        <h3>Agendamientos</h3>
+                        <div class="grid-4" style="margin-top: 12px;">
+                            <div class="form-group">
+                                <label for="appointment_type">Tipo de Paciente</label>
+                                <select id="appointment_type" name="appointment_type">
+                                    <option value="">Todos</option>
+                                    <option value="incidentes">Incidentes</option>
+                                    <option value="prebalentes">Prebalentes</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="agrupadores">Agrupadores</label>
+                                <select id="priority" name="priority">
+                                    <option value="">Todas</option>
+                                    <option value="agendado">Agendado</option>
+                                    <option value="realizado">Realizado</option>
+                                    <option value="En programación. prestador">En programación. prestador</option>
+                                    <option value="diferido">Diferido</option>
+                                    <option value="No Acepta">No Acepta</option>
+                                    <option value="Sin Agenda">Sin Agenda</option>
+                                    <option value="Control mayor 3 meses">Control mayor 3 meses</option>
+                                    <option value="Pendiente reporte">Pendiente reporte</option>
+                                    <option value="En gestión interna">En gestión interna</option>
+                                    <option value="Fallecido">Fallecido</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="filters-actions" style="margin-top: 20px;">
+                        <button class="btn primary" type="submit">
+                            <i class="fas fa-search"></i> Aplicar
+                        </button>
+                        <button class="btn secondary" type="button">
+                            <i class="fas fa-times"></i> Limpiar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Tiempos Críticos -->
+        <section class="section">
+            <div class="card">
+                <h2><i class="fas fa-exclamation-triangle"></i> Tiempos críticos:</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px;">
+                    <div class="alert critical">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-exclamation-circle" style="font-size: 24px;"></i>
+                            <div>
+                                <div style="font-size: 24px; font-weight: bold;">2</div>
+                                <div>Alerta Crítica</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert warning">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-clock" style="font-size: 24px;"></i>
+                            <div>
+                                <div style="font-size: 24px; font-weight: bold;">3</div>
+                                <div>Advertencia</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert success">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-check-circle" style="font-size: 24px;"></i>
+                            <div>
+                                <div style="font-size: 24px; font-weight: bold;">4</div>
+                                <div>En Tiempo</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert info">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-list" style="font-size: 24px;"></i>
+                            <div>
+                                <div style="font-size: 24px; font-weight: bold;">9</div>
+                                <div>Total Casos</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Buscador -->
+                <section class="search">
+                    <input type="text" placeholder="🔍 Buscar paciente, caso o procedimiento" aria-label="Buscar">
+                    <button class="btn" title="Buscar"><i class="bx bx-search"></i></button>
+                </section>
+            </div>
+        </section>
+
+        <!-- KPI Grid -->
+        <section class="section">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <!-- Total Ordenar -->
+                <div class="card" style="text-align: center; border-top: 4px solid #3b82f6;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Total Ordenar</div>
+                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">156</div>
+                    <div style="font-size: 12px; color: #6b7280;">12%</div>
+                </div>
+                
+                <!-- Realizados -->
+                <div class="card" style="text-align: center; border-top: 4px solid #10b981;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Realizados</div>
+                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">89</div>
+                    <div style="font-size: 12px; color: #6b7280;">10%</div>
+                </div>
+                
+                <!-- Total Ordenar (duplicado) -->
+                <div class="card" style="text-align: center; border-top: 4px solid #3b82f6;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Agendados</div>
+                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">42</div>
+                    <div style="font-size: 12px; color: #6b7280;">15%</div>
+                </div>
+                
+                <!-- Total Ordenar (otro) -->
+                <div class="card" style="text-align: center; border-top: 4px solid #f59e0b;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Pendientes</div>
+                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">25</div>
+                    <div style="font-size: 12px; color: #6b7280;">-5%</div>
+                </div>
+                
+                <!-- Promedio Días -->
+                <div class="card" style="text-align: center; border-top: 4px solid #8b5cf6;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Promedio Días</div>
+                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">7.2</div>
+                    <div style="font-size: 12px; color: #6b7280;">7.2</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gráficas -->
+        <section class="section">
+            <div class="grid-2">
+                <div class="card">
+                    <h3><i class="fas fa-pie-chart"></i> Estado de la Solicitud</h3>
+                    <div style="height: 300px; margin-top: 16px;">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                    <div style="margin-top: 16px; font-size: 12px; color: #6b7280;">
+                        <span style="display: inline-block; width: 12px; height: 12px; background: #3b82f6; border-radius: 2px; margin-right: 8px;"></span>Pendiente
+                        <span style="display: inline-block; width: 12px; height: 12px; background: #10b981; border-radius: 2px; margin-left: 16px; margin-right: 8px;"></span>Agendado
+                        <span style="display: inline-block; width: 12px; height: 12px; background: #f59e0b; border-radius: 2px; margin-left: 16px; margin-right: 8px;"></span>Realizado
+                        <span style="display: inline-block; width: 12px; height: 12px; background: #ef4444; border-radius: 2px; margin-left: 16px; margin-right: 8px;"></span>Por Gestionar
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3><i class="fas fa-bar-chart"></i> Oportunidad por Procedimientos</h3>
+                    <div style="height: 300px; margin-top: 16px;">
+                        <canvas id="procedureChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de Barreras y Próximas IPS -->
+
+        <section class="section">
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">
+                    <i class="fas fa-chart-line" style="color:#3b82f6;"></i> Barreras
+                </h2>
+                <div class="grid-2">
+                    <!-- Barreras del paciente -->
+                    <div class="card" style="background: #f8fafc;">
+                        <h3 style="margin-bottom: 16px;">
+                            <i class="fas fa-exclamation-triangle" style="color:#f59e0b;"></i> Propios del paciente
+                        </h3>
+                        <ul style="list-style:none; padding:0;">
+                            <li style="display:flex; align-items:center; margin-bottom:14px;">
+                                <i class="fas fa-money-bill-wave" style="color:#13ff02; margin-right:8px;"></i>
+                                <span style="flex:1;"><strong>Económico</strong></span>
+                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">25%</span>
+                            </li>
+                            <li style="display:flex; align-items:center; margin-bottom:14px;">
+                                <i class="fas fa-users" style="color:#13ff02; margin-right:8px;"></i>
+                                <span style="flex:1;"><strong>Sociales</strong></span>
+                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">16%</span>
+                            </li>
+                            <li style="display:flex; align-items:center; margin-bottom:14px;">
+                                <i class="fas fa-home" style="color:#13ff02; margin-right:8px;"></i>
+                                <span style="flex:1;"><strong>Domicilio lejos</strong></span>
+                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">14%</span>
+                            </li>
+                            <li style="display:flex; align-items:center;">
+                                <i class="fas fa-phone-slash" style="color:#13ff02; margin-right:8px;"></i>
+                                <span style="flex:1;"><strong>Difícil comunicación</strong></span>
+                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">7%</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <!-- Barreras de la IPS -->
+                    <div class="card" style="background: #f8fafc;">
+                        <h3 style="margin-bottom: 16px;">
+                            <i class="fas fa-hospital" style="color:#3b82f6;"></i> Propios de la IPS
+                        </h3>
+                        <ul style="list-style:none; padding:0;">
+                            <li style="display:flex; align-items:center; margin-bottom:14px;">
+                                <i class="fas fa-calendar-times" style="color:#13ff02; margin-right:8px;"></i>
+                                <span style="flex:1;"><strong>Sin agendar</strong></span>
+                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">12%</span>
+                            </li>
+                            <li style="display:flex; align-items:center; margin-bottom:14px;">
+                                <i class="fas fa-file-alt" style="color:#13ff02; margin-right:8px;"></i>
+                                <span style="flex:1;"><strong>Demora de reportes</strong></span>
+                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">4%</span>
+                            </li>
+                            <li style="display:flex; align-items:center; margin-bottom:14px;">
+                                <i class="fas fa-user-clock" style="color:#13ff02; margin-right:8px;"></i>
+                                <span style="flex:1;"><strong>No disponibilidad</strong></span>
+                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">8%</span>
+                            </li>
+                            <li style="display:flex; align-items:center;">
+                                <i class="fas fa-pills" style="color:#13ff02; margin-right:8px;"></i>
+                                <span style="flex:1;"><strong>Insumos o medicamentos</strong></span>
+                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">10%</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>  
+        </section>
+        <!-- Tabla de Pacientes -->
+        <section class="section">
+            <div class="card">
+                <h2><i class="fas fa-users"></i> Detalle por Pacientes</h2>
+                <div style="overflow-x: auto; margin-top: 16px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 2px solid #e5e7eb;">
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Paciente</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Tipo de Procedimientos</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">CUPS</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Servicio Solicitado</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Estado</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Barreras</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Fecha Solicitud</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Fecha Cita</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Días</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="width: 32px; height: 32px; background: #3b82f6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">MP</div>
+                                        <div>
+                                            <div style="font-weight: 600;">María Pérez</div>
+                                            <div style="font-size: 12px; color: #6b7280;">ID: 12345</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px;">
+                                    <span style="background: #dbeafe; color: #1d4ed8; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">ONCOLOGÍA</span>
+                                </td>
+                                <td style="padding: 12px; font-family: monospace;">890278</td>
+                                <td style="padding: 12px;">
+                                    <div style="font-size: 13px;">
+                                        <div>Consulta de primera vez por</div>
+                                        <div>especialista en oncología</div>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px;">
+                                    <span style="background: #fef3c7; color: #d97706; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">PENDIENTE</span>
+                                </td>
+                                <td style="padding: 12px;">
+                                    <span style="font-size: 12px; color: #6b7280;">Disponibilidad del paciente</span>
+                                </td>
+                                <td style="padding: 12px; font-size: 13px;">14/01/2024</td>
+                                <td style="padding: 12px; font-size: 13px;">22/01/2024</td>
+                                <td style="padding: 12px; text-align: center; font-weight: 600;">7</td>
+                                <td style="padding: 12px;">
+                                    <div style="display: flex; gap: 4px;">
+                                        <button class="btn" style="padding: 6px 8px; background: #3b82f6; color: white; border-radius: 4px;">
+                                            <i class="fas fa-eye"></i>Ver
+                                        </button>
+                                        <button class="btn" style="padding: 6px 8px; background: #6b7280; color: white; border-radius: 4px;">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="width: 32px; height: 32px; background: #10b981; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">JG</div>
+                                        <div>
+                                            <div style="font-weight: 600;">Juan García</div>
+                                            <div style="font-size: 12px; color: #6b7280;">ID: 12346</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px;">
+                                    <span style="background: #fecaca; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">CIRUGÍA</span>
+                                </td>
+                                <td style="padding: 12px; font-family: monospace;">890278</td>
+                                <td style="padding: 12px;">
+                                    <div style="font-size: 13px;">
+                                        <div>consulta de</div>
+                                        <div>control de</div>
+                                        <div>cirugía general</div>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px;">
+                                    <span style="background: #dcfce7; color: #16a34a; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">REALIZADO</span>
+                                </td>
+                                <td style="padding: 12px;">
+                                    <span style="font-size: 12px; color: #6b7280;">Ninguna</span>
+                                </td>
+                                <td style="padding: 12px; font-size: 13px;">10/01/2024</td>
+                                <td style="padding: 12px; font-size: 13px;">18/01/2024</td>
+                                <td style="padding: 12px; text-align: center; font-weight: 600;">8</td>
+                                <td style="padding: 12px;">
+                                    <div style="display: flex; gap: 4px;">
+                                        <button class="btn" style="padding: 6px 8px; background: #3b82f6; color: white; border-radius: 4px;">
+                                            <i class="fas fa-eye"></i>Ver
+                                        </button>
+                                        <button class="btn" style="padding: 6px 8px; background: #6b7280; color: white; border-radius: 4px;">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="width: 32px; height: 32px; background: #f59e0b; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">AL</div>
+                                        <div>
+                                            <div style="font-weight: 600;">Ana López</div>
+                                            <div style="font-size: 12px; color: #6b7280;">ID: 12347</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px;">
+                                    <span style="background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">RADIOTERAPIA</span>
+                                </td>
+                                <td style="padding: 12px; font-family: monospace;">966004</td>
+                                <td style="padding: 12px;">
+                                    <div style="font-size: 13px;">
+                                        <div>consulta de primera vez por</div>
+                                        <div>especialista en oncología</div>
+                                        <div style="color: #6b7280; margin-top: 4px;">antígeno de</div>
+                                        <div style="color: #6b7280;">cáncer de mama</div>
+                                        <div style="color: #6b7280; margin-top: 4px;">15-3+determinación</div>
+                                        <div style="color: #6b7280;">sangre o</div>
+                                        <div style="color: #6b7280;">suero</div>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px;">
+                                    <span style="background: #ddd6fe; color: #5b21b6; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">AGENDADO</span>
+                                </td>
+                                <td style="padding: 12px;">
+                                    <span style="font-size: 12px; color: #6b7280;">Demora en la agenda</span>
+                                </td>
+                                <td style="padding: 12px; font-size: 13px;">20/01/2024</td>
+                                <td style="padding: 12px; font-size: 13px;">25/01/2024</td>
+                                <td style="padding: 12px; text-align: center; font-weight: 600;">5</td>
+                                <td style="padding: 12px;">
+                                    <div style="display: flex; gap: 4px;">
+                                        <button class="btn" style="padding: 6px 8px; background: #3b82f6; color: white; border-radius: 4px;">
+                                            <i class="fas fa-eye"></i>Ver
+                                        </button>
+                                        <button class="btn" style="padding: 6px 8px; background: #6b7280; color: white; border-radius: 4px;">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Inicialización básica de gráficas
+        document.addEventListener('DOMContentLoaded', function() {
+            // Gráfica de Estado (Donut)
+            const statusCtx = document.getElementById('statusChart')?.getContext('2d');
+            if (statusCtx) {
+                new Chart(statusCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Pendiente', 'Agendado', 'Realizado', 'Por Gestionar'],
+                        datasets: [{
+                            data: [25, 42, 89, 10],
+                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Gráfica de Procedimientos (Bar)
+            const procedureCtx = document.getElementById('procedureChart')?.getContext('2d');
+            if (procedureCtx) {
+                new Chart(procedureCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Oncología', 'Cirugía', 'Radioterapia', 'Quimioterapia', 'Consulta', 'Imágenes', 'Lab', 'Patología'],
+                        datasets: [{
+                            label: 'Días promedio',
+                            data: [7.2, 5.8, 8.1, 6.3, 4.2, 5.5, 3.8, 6.9],
+                            backgroundColor: ['#3b82f6', '#dc2626', '#3730a3', '#059669', '#d97706', '#7c3aed', '#0891b2', '#be185d']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
+{% endblock %}

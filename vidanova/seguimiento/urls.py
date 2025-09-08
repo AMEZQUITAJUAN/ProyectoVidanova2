@@ -1,6 +1,7 @@
+# seguimiento/urls.py
 from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('seguimiento/', views.seguimiento, name='seguimiento'),
+    path('', views.seguimiento, name='seguimiento'),  # <--- SOLO comillas vacías 'z
 ]

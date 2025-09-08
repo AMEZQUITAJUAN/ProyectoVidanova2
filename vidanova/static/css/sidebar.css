@@ -1,0 +1,184 @@
+/* =================================
+   SIDEBAR RESPONSIVO Y CON EFECTO HOVER
+   ================================= */
+
+/* Sidebar base */
+.side-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 80px;
+    background: linear-gradient(135deg, #2c5aa0 0%, #1e3a5f 100%);
+    transition: width 0.3s ease-in-out;
+    overflow-x: hidden;
+    z-index: 1000;
+    box-shadow: 3px 0 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Expandir sidebar al hacer hover en escritorio */
+body.sidebar-expanded .side-menu,
+.side-menu:hover {
+    width: 280px;
+}
+
+/* Ocultar sidebar en móvil por defecto */
+@media (max-width: 768px) {
+    .side-menu {
+        width: 0 !important;
+        min-width: 0 !important;
+        overflow: hidden;
+        transition: width 0.3s;
+    }
+    body.sidebar-mobile-open .side-menu {
+        width: 250px !important;
+        min-width: 250px !important;
+    }
+}
+
+/* =================================
+   HEADER DE LA SIDEBAR
+   ================================= */
+
+.sidebar-header {
+    padding: 20px 0;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 20px;
+}
+
+.sidebar-header__logo {
+    color: white;
+    font-size: 24px;
+    font-weight: 300;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: all 0.3s ease-in-out;
+}
+
+.sidebar-header__logo span {
+    color: #ffd700;
+}
+
+.sidebar-header__logo strong {
+    font-weight: 700;
+    color: #ff6b6b;
+}
+
+/* Mostrar logo al hacer hover */
+.side-menu:hover .sidebar-header__logo {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* =================================
+   NAVEGACIÓN
+   ================================= */
+
+.sidebar {
+    padding: 0;
+}
+
+.sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar li {
+    position: relative;
+    margin: 5px 0;
+    cursor: pointer;
+    border-radius: 0 25px 25px 0;
+    transition: all 0.3s ease-in-out;
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    color: white;
+    font-size: 16px;
+}
+
+.sidebar li:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(5px);
+}
+
+.sidebar li i {
+    font-size: 24px;
+    min-width: 40px;
+    text-align: center;
+    color: #fff;
+    transition: all 0.3s ease-in-out;
+}
+
+.sidebar li:hover i {
+    color: #ffd700;
+    transform: scale(1.1);
+}
+
+/* Texto de los enlaces */
+.sidebar li samp {
+    opacity: 0;
+    margin-left: 10px;
+    transition: opacity 0.3s, margin-left 0.3s;
+    white-space: nowrap;
+}
+
+body.sidebar-expanded .sidebar li samp,
+.side-menu:hover .sidebar li samp {
+    opacity: 1;
+    margin-left: 10px;
+}
+
+/* Indicador de elemento activo */
+.sidebar li.active {
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffd700;
+}
+
+.sidebar li.active i {
+    color: #ffd700;
+}
+
+/* Scroll personalizado para la sidebar */
+.side-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.side-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.side-menu::-webkit-scrollbar-thumb {
+    background: #1e3a5f;
+    border-radius: 3px;
+}
+
+.side-menu::-webkit-scrollbar-thumb:hover {
+    background: #2c5aa0;
+}
+
+/* =================================
+   RESPONSIVE DESIGN
+   ================================= */
+
+@media (max-width: 768px) {
+    /* Botón hamburguesa para móvil (opcional) */
+    .menu-toggle {
+        display: block !important;
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 1100;
+        background: #2c5aa0;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        font-size: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        cursor: pointer;
+    }
+} 
