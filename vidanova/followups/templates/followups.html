@@ -168,44 +168,41 @@
         </section>
 
         <!-- KPI Grid -->
-        <section class="section">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-                <!-- Total Ordenar -->
-                <div class="card" style="text-align: center; border-top: 4px solid #3b82f6;">
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Total Ordenar</div>
-                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">156</div>
-                    <div style="font-size: 12px; color: #6b7280;">12%</div>
-                </div>
-                
-                <!-- Realizados -->
-                <div class="card" style="text-align: center; border-top: 4px solid #10b981;">
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Realizados</div>
-                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">89</div>
-                    <div style="font-size: 12px; color: #6b7280;">10%</div>
-                </div>
-                
-                <!-- Total Ordenar (duplicado) -->
-                <div class="card" style="text-align: center; border-top: 4px solid #3b82f6;">
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Agendados</div>
-                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">42</div>
-                    <div style="font-size: 12px; color: #6b7280;">15%</div>
-                </div>
-                
-                <!-- Total Ordenar (otro) -->
-                <div class="card" style="text-align: center; border-top: 4px solid #f59e0b;">
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Pendientes</div>
-                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">25</div>
-                    <div style="font-size: 12px; color: #6b7280;">-5%</div>
-                </div>
-                
-                <!-- Promedio Días -->
-                <div class="card" style="text-align: center; border-top: 4px solid #8b5cf6;">
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Promedio Días</div>
-                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">7.2</div>
-                    <div style="font-size: 12px; color: #6b7280;">7.2</div>
-                </div>
+<section class="section">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        
+        <!-- Total Seguimientos -->
+        <div class="card" style="text-align: center; border-top: 4px solid #3b82f6;">
+            <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Total Seguimientos</div>
+            <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.total }}</div>
+            <div style="font-size: 12px; color: #6b7280;">100%</div>
+        </div>
+
+        <!-- Completados -->
+        <div class="card" style="text-align: center; border-top: 4px solid #10b981;">
+            <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Completados</div>
+            <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.completados }}</div>
+            <div style="font-size: 12px; color: #6b7280;">{{ stats.porcentaje_completado }}%</div>
+        </div>
+
+        <!-- Pendientes -->
+        <div class="card" style="text-align: center; border-top: 4px solid #f59e0b;">
+            <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Pendientes</div>
+            <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.pendientes }}</div>
+            <div style="font-size: 12px; color: #6b7280;">{{ stats.porcentaje_pendiente }}%</div>
+        </div>
+
+        <!-- Promedio Días -->
+        <div class="card" style="text-align: center; border-top: 4px solid #8b5cf6;">
+            <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Promedio Días</div>
+            <div style="font-size: 36px; font-weight: bold; color: #1f2937;">
+                {{ stats.promedio_dias|default:"-" }}
             </div>
-        </section>
+            <div style="font-size: 12px; color: #6b7280;">Entre sesiones</div>
+        </div>
+    </div>
+</section>
+
 
         <!-- Gráficas -->
         <section class="section">
@@ -320,135 +317,46 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <td style="padding: 12px;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <div style="width: 32px; height: 32px; background: #3b82f6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">MP</div>
-                                        <div>
-                                            <div style="font-weight: 600;">María Pérez</div>
-                                            <div style="font-size: 12px; color: #6b7280;">ID: 12345</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td style="padding: 12px;">
-                                    <span style="background: #dbeafe; color: #1d4ed8; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">ONCOLOGÍA</span>
-                                </td>
-                                <td style="padding: 12px; font-family: monospace;">890278</td>
-                                <td style="padding: 12px;">
-                                    <div style="font-size: 13px;">
-                                        <div>Consulta de primera vez por</div>
-                                        <div>especialista en oncología</div>
-                                    </div>
-                                </td>
-                                <td style="padding: 12px;">
-                                    <span style="background: #fef3c7; color: #d97706; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">PENDIENTE</span>
-                                </td>
-                                <td style="padding: 12px;">
-                                    <span style="font-size: 12px; color: #6b7280;">Disponibilidad del paciente</span>
-                                </td>
-                                <td style="padding: 12px; font-size: 13px;">14/01/2024</td>
-                                <td style="padding: 12px; font-size: 13px;">22/01/2024</td>
-                                <td style="padding: 12px; text-align: center; font-weight: 600;">7</td>
-                                <td style="padding: 12px;">
-                                    <div style="display: flex; gap: 4px;">
-                                        <button class="btn" style="padding: 6px 8px; background: #3b82f6; color: white; border-radius: 4px;">
-                                            <i class="fas fa-eye"></i>Ver
-                                        </button>
-                                        <button class="btn" style="padding: 6px 8px; background: #6b7280; color: white; border-radius: 4px;">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            
-                            <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <td style="padding: 12px;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <div style="width: 32px; height: 32px; background: #10b981; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">JG</div>
-                                        <div>
-                                            <div style="font-weight: 600;">Juan García</div>
-                                            <div style="font-size: 12px; color: #6b7280;">ID: 12346</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td style="padding: 12px;">
-                                    <span style="background: #fecaca; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">CIRUGÍA</span>
-                                </td>
-                                <td style="padding: 12px; font-family: monospace;">890278</td>
-                                <td style="padding: 12px;">
-                                    <div style="font-size: 13px;">
-                                        <div>consulta de</div>
-                                        <div>control de</div>
-                                        <div>cirugía general</div>
-                                    </div>
-                                </td>
-                                <td style="padding: 12px;">
-                                    <span style="background: #dcfce7; color: #16a34a; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">REALIZADO</span>
-                                </td>
-                                <td style="padding: 12px;">
-                                    <span style="font-size: 12px; color: #6b7280;">Ninguna</span>
-                                </td>
-                                <td style="padding: 12px; font-size: 13px;">10/01/2024</td>
-                                <td style="padding: 12px; font-size: 13px;">18/01/2024</td>
-                                <td style="padding: 12px; text-align: center; font-weight: 600;">8</td>
-                                <td style="padding: 12px;">
-                                    <div style="display: flex; gap: 4px;">
-                                        <button class="btn" style="padding: 6px 8px; background: #3b82f6; color: white; border-radius: 4px;">
-                                            <i class="fas fa-eye"></i>Ver
-                                        </button>
-                                        <button class="btn" style="padding: 6px 8px; background: #6b7280; color: white; border-radius: 4px;">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            
-                            <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <td style="padding: 12px;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <div style="width: 32px; height: 32px; background: #f59e0b; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">AL</div>
-                                        <div>
-                                            <div style="font-weight: 600;">Ana López</div>
-                                            <div style="font-size: 12px; color: #6b7280;">ID: 12347</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td style="padding: 12px;">
-                                    <span style="background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">RADIOTERAPIA</span>
-                                </td>
-                                <td style="padding: 12px; font-family: monospace;">966004</td>
-                                <td style="padding: 12px;">
-                                    <div style="font-size: 13px;">
-                                        <div>consulta de primera vez por</div>
-                                        <div>especialista en oncología</div>
-                                        <div style="color: #6b7280; margin-top: 4px;">antígeno de</div>
-                                        <div style="color: #6b7280;">cáncer de mama</div>
-                                        <div style="color: #6b7280; margin-top: 4px;">15-3+determinación</div>
-                                        <div style="color: #6b7280;">sangre o</div>
-                                        <div style="color: #6b7280;">suero</div>
-                                    </div>
-                                </td>
-                                <td style="padding: 12px;">
-                                    <span style="background: #ddd6fe; color: #5b21b6; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">AGENDADO</span>
-                                </td>
-                                <td style="padding: 12px;">
-                                    <span style="font-size: 12px; color: #6b7280;">Demora en la agenda</span>
-                                </td>
-                                <td style="padding: 12px; font-size: 13px;">20/01/2024</td>
-                                <td style="padding: 12px; font-size: 13px;">25/01/2024</td>
-                                <td style="padding: 12px; text-align: center; font-weight: 600;">5</td>
-                                <td style="padding: 12px;">
-                                    <div style="display: flex; gap: 4px;">
-                                        <button class="btn" style="padding: 6px 8px; background: #3b82f6; color: white; border-radius: 4px;">
-                                            <i class="fas fa-eye"></i>Ver
-                                        </button>
-                                        <button class="btn" style="padding: 6px 8px; background: #6b7280; color: white; border-radius: 4px;">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
+{% for f in registros %}
+<tr style="border-bottom: 1px solid #e5e7eb;">
+    <td style="padding: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 32px; height: 32px; background: #3b82f6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">
+                {{ f.patient.name|slice:":2"|upper }}
+            </div>
+            <div>
+                <div style="font-weight: 600;">{{ f.patient.name }}</div>
+                <div style="font-size: 12px; color: #6b7280;">ID: {{ f.patient.id }}</div>
+            </div>
+        </div>
+    </td>
+    <td style="padding: 12px;">
+        <span style="background: #dbeafe; color: #1d4ed8; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+            {{ f.treatment.type }}
+        </span>
+    </td>
+    <td style="padding: 12px; font-family: monospace;">{{ f.treatment.code }}</td>
+    <td style="padding: 12px;">{{ f.treatment.description }}</td>
+    <td style="padding: 12px;">
+        {% if f.completed %}
+            <span style="background: #dcfce7; color: #16a34a; padding: 4px 8px; border-radius: 4px;">COMPLETADO</span>
+        {% else %}
+            <span style="background: #fef3c7; color: #d97706; padding: 4px 8px; border-radius: 4px;">PENDIENTE</span>
+        {% endif %}
+    </td>
+    <td style="padding: 12px;">{{ f.interruption_reason|default:"-" }}</td>
+    <td style="padding: 12px;">{{ f.session_date }}</td>
+    <td style="padding: 12px;">{{ f.session_date }}</td>
+    <td style="padding: 12px; text-align: center;">-</td>
+    <td style="padding: 12px;">
+        <button class="btn" style="background: #3b82f6; color: white;">Ver</button>
+    </td>
+</tr>
+{% empty %}
+<tr><td colspan="10" style="text-align:center;">No hay registros disponibles.</td></tr>
+{% endfor %}
+</tbody>
+
                     </table>
                 </div>
             </div>
@@ -456,63 +364,79 @@
     </div>
 
     <script>
-        // Inicialización básica de gráficas
-        document.addEventListener('DOMContentLoaded', function() {
-            // Gráfica de Estado (Donut)
-            const statusCtx = document.getElementById('statusChart')?.getContext('2d');
-            if (statusCtx) {
-                new Chart(statusCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Pendiente', 'Agendado', 'Realizado', 'Por Gestionar'],
-                        datasets: [{
-                            data: [25, 42, 89, 10],
-                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        }
-                    }
-                });
-            }
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Gráfica de Estado (Donut) ---
+    const estadoData = JSON.parse('{{ estado_data|safe|escapejs }}');
+    const statusCtx = document.getElementById('statusChart')?.getContext('2d');
 
-            // Gráfica de Procedimientos (Bar)
-            const procedureCtx = document.getElementById('procedureChart')?.getContext('2d');
-            if (procedureCtx) {
-                new Chart(procedureCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Oncología', 'Cirugía', 'Radioterapia', 'Quimioterapia', 'Consulta', 'Imágenes', 'Lab', 'Patología'],
-                        datasets: [{
-                            label: 'Días promedio',
-                            data: [7.2, 5.8, 8.1, 6.3, 4.2, 5.5, 3.8, 6.9],
-                            backgroundColor: ['#3b82f6', '#dc2626', '#3730a3', '#059669', '#d97706', '#7c3aed', '#0891b2', '#be185d']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
+    if (statusCtx) {
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(estadoData),
+                datasets: [{
+                    data: Object.values(estadoData),
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#374151', font: { size: 12 } }
                     }
-                });
+                }
             }
         });
-    </script>
+    }
+
+    // --- Gráfica de Procedimientos (Bar) ---
+    const procedimientoData = JSON.parse('{{ procedimiento_data|safe|escapejs }}');
+    const labels = procedimientoData.map(item => item.treatment__tipo);
+    const values = procedimientoData.map(item => item.total);
+    const procedureCtx = document.getElementById('procedureChart')?.getContext('2d');
+
+    if (procedureCtx) {
+        new Chart(procedureCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Total de Seguimientos',
+                    data: values,
+                    backgroundColor: ['#3b82f6', '#dc2626', '#3730a3', '#059669', '#d97706', '#7c3aed', '#0891b2', '#be185d']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#374151' }
+                    },
+                    x: {
+                        ticks: { color: '#374151' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.parsed.y} seguimientos`
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+
 </body>
 </html>
 {% endblock %}

@@ -8,6 +8,6 @@ urlpatterns = [
     path('api/', include('patients.urls')), # /api/pacientes
     path('api/tratamientos/', include('treatments.urls')),
     path('api/autorizaciones/', include('authorizations.urls')),
-    path('seguiniento/', include('followups.urls')),
+    path('seguimiento/', include('followups.urls')),
 
 ]

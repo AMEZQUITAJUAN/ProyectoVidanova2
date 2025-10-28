@@ -10,4 +10,4 @@ class FollowUp(models.Model):
     interruption_reason = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.patient.name} - {self.treatment.type} - {self.session_date}"
+        return f"{self.patient.nombre} - {self.treatment.tipo} - {self.session_date}"
