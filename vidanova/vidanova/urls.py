@@ -6,6 +6,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', view.login, name='login'),
     path('api/', include('patients.urls')), # /api/pacientes
-    path('followups/', include('followups.urls')),
+    path('api/tratamientos/', include('treatments.urls')),
+    path('api/autorizaciones/', include('authorizations.urls')),
+    path('seguiniento/', include('followups.urls')),
 
 ]

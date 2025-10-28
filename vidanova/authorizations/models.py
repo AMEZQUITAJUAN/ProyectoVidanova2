@@ -2,7 +2,7 @@
 from django.db import models
 from patients.models import Patient
 
-class Authorization(models.Model):
+class Authorizations(models.Model):
     paciente = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='autorizaciones')
     numero = models.CharField(max_length=120, null=True, blank=True)
     tipo_servicio = models.CharField(max_length=120)  # Cirugía, Consulta, Imagen, Laboratorio, QMT...
