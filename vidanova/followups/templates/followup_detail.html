@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="section">
+    <div class="card">
+        <h2>Seguimientos de {{ paciente.nombre }}</h2>
+        <p><strong>Documento:</strong> {{ paciente.numero_documento }}</p>
+        <p><strong>EPS:</strong> {{ paciente.eps }}</p>
+        <hr>
+
+        <h3>Resumen</h3>
+        <ul>
+            <li>Total seguimientos: {{ stats.total }}</li>
+            <li>Completados: {{ stats.completados }}</li>
+            <li>Pendientes: {{ stats.pendientes }}</li>
+        </ul>
+
+        <h3>Detalle de sesiones</h3>
+        <table border="1" cellspacing="0" cellpadding="6">
+            <thead>
+                <tr>
+                    <th>Tratamiento</th>
+                    <th>Fecha</th>
+                    <th>Completado</th>
+                    <th>Motivo de interrupción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in seguimientos %}
+                <tr>
+                    <td>{{ s.treatment.tipo }}</td>
+                    <td>{{ s.session_date }}</td>
+                    <td>{% if s.completed %}✅{% else %}❌{% endif %}</td>
+                    <td>{{ s.interruption_reason|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align:center;">No hay registros</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <br>
+        <a href="{% url 'followups' %}" class="btn" style="background: #6b7280; color: white;">← Volver</a>
+    </div>
+</section>
+{% endblock %}

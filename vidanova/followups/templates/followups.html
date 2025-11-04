@@ -349,8 +349,9 @@
     <td style="padding: 12px;">{{ f.session_date }}</td>
     <td style="padding: 12px; text-align: center;">-</td>
     <td style="padding: 12px;">
-        <button class="btn" style="background: #3b82f6; color: white;">Ver</button>
-    </td>
+    <a href="{% url 'followup_detail' f.patient.id %}" class="btn" style="background: #3b82f6; color: white;">Ver</a>
+</td>
+
 </tr>
 {% empty %}
 <tr><td colspan="10" style="text-align:center;">No hay registros disponibles.</td></tr>

@@ -1,0 +1,19 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}VidaNova{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/adminboard.css' %}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body style="font-family: Arial, sans-serif; background: #f3f4f6; margin: 0; padding: 0;">
+    <header style="background: #1f2937; color: white; padding: 16px;">
+        <h1>VidaNova - Seguimiento de Pacientes</h1>
+    </header>
+
+    <main style="padding: 24px;">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

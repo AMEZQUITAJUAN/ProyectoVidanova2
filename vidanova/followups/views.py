@@ -1,7 +1,8 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.db.models import Count, Avg, Q
 from datetime import date
 from .models import FollowUp
+from followups.models import FollowUp
 from patients.models import Patient
 from treatments.models import Treatment
 from authorizations.models import Authorizations as Authorization
@@ -9,7 +10,29 @@ from alerts.models import Alert
 from appointments.models import Appointment
 import json
 
+def followup_detail(request, patient_id):
+    # Obtiene el paciente o devuelve 404 si no existe
+    paciente = get_object_or_404(Patient, id=patient_id)
 
+    # Trae todos los seguimientos del paciente
+    seguimientos = FollowUp.objects.filter(patient=paciente).select_related('treatment').order_by('-session_date')
+
+    # Métricas simples
+    total = seguimientos.count()
+    completados = seguimientos.filter(completed=True).count()
+    pendientes = total - completados
+
+    context = {
+        "paciente": paciente,
+        "seguimientos": seguimientos,
+        "stats": {
+            "total": total,
+            "completados": completados,
+            "pendientes": pendientes
+        }
+    }
+
+    return render(request, "followup_detail.html", context)
 
 def followups(request):
     registros = FollowUp.objects.select_related('patient', 'treatment')
