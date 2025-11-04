@@ -7,6 +7,8 @@ from treatments.models import Treatment
 from authorizations.models import Authorizations as Authorization
 from alerts.models import Alert
 from appointments.models import Appointment
+import json
+
 
 
 def followups(request):
@@ -65,8 +67,8 @@ def followups(request):
             "porcentaje_pendiente": porcentaje_pendiente,
             "promedio_dias": "-",
         },
-        "estado_data": estado_data,
-        "procedimiento_data": list(procedimiento_data),
+        "estado_data": json.dumps(estado_data),
+        "procedimiento_data": json.dumps(list(procedimiento_data)),
         "alertas": {
             "criticas": 2,
             "advertencias": 3,
@@ -81,5 +83,8 @@ def followups(request):
             "procedure": procedure or "",
         }
     }
+
+    print("Estado data:", estado_data)
+    print("Procedimiento data:", list(procedimiento_data))
 
     return render(request, 'followups.html', context)

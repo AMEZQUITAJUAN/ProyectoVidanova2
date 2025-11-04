@@ -363,73 +363,65 @@
         </section>
     </div>
 
-    <script>
+    <!-- 📊 SCRIPT DE GRÁFICAS -->
+     
+<script>
 document.addEventListener('DOMContentLoaded', function() {
-    // --- Gráfica de Estado (Donut) ---
+    // 🟢 Pasar los datos de Django a JS usando JSON seguro
     const estadoData = JSON.parse('{{ estado_data|safe|escapejs }}');
+    const procedimientoData = JSON.parse('{{ procedimiento_data|safe|escapejs }}');
+
+    console.log("Estado data:", estadoData);
+    console.log("Procedimiento data:", procedimientoData);
+
+    // ---- Gráfica de Estado (Donut) ----
     const statusCtx = document.getElementById('statusChart')?.getContext('2d');
 
     if (statusCtx) {
         new Chart(statusCtx, {
             type: 'doughnut',
             data: {
-                labels: Object.keys(estadoData),
+                labels: ['Pendiente', 'Completado', 'Agendado', 'Por Gestionar'],
                 datasets: [{
-                    data: Object.values(estadoData),
+                    data: [
+                        estadoData.pendiente || 0,
+                        estadoData.completado || 0,
+                        estadoData.agendado || 0,
+                        estadoData.por_gestionar || 0
+                    ],
                     backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { color: '#374151', font: { size: 12 } }
-                    }
-                }
+                plugins: { legend: { position: 'bottom' } }
             }
         });
     }
 
-    // --- Gráfica de Procedimientos (Bar) ---
-    const procedimientoData = JSON.parse('{{ procedimiento_data|safe|escapejs }}');
-    const labels = procedimientoData.map(item => item.treatment__tipo);
-    const values = procedimientoData.map(item => item.total);
+    // ---- Gráfica de Procedimientos (Barras) ----
     const procedureCtx = document.getElementById('procedureChart')?.getContext('2d');
-
     if (procedureCtx) {
+        const labels = procedimientoData.map(p => p.treatment__tipo);
+        const valores = procedimientoData.map(p => p.total);
+
         new Chart(procedureCtx, {
             type: 'bar',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Total de Seguimientos',
-                    data: values,
-                    backgroundColor: ['#3b82f6', '#dc2626', '#3730a3', '#059669', '#d97706', '#7c3aed', '#0891b2', '#be185d']
+                    label: 'Total por Procedimiento',
+                    data: valores,
+                    backgroundColor: '#3b82f6'
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { color: '#374151' }
-                    },
-                    x: {
-                        ticks: { color: '#374151' }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => `${ctx.parsed.y} seguimientos`
-                        }
-                    }
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
                 }
             }
         });
