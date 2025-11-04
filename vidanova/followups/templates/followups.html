@@ -41,37 +41,37 @@
                 <form class="filters">
                     <div class="grid-4" style="margin-top: 16px;">
                         <div class="form-group">
-                            <label for="date_from">Desde</label>
-                            <input type="date" id="date_from" name="date_from" value="2024-01-01">
-                        </div>
-                        <div class="form-group">
-                            <label for="date_to">Hasta</label>
-                            <input type="date" id="date_to" name="date_to" value="2024-12-31">
-                        </div>
-                        <div class="form-group">
-                            <label for="status">Estado de la Solicitud</label>
-                            <select id="status" name="status">
-                                <option value="">Todos</option>
-                                <option value="pendiente">Pendiente</option>
-                                <option value="en_gestion">En gestión</option>
-                                <option value="por_gestionar">Por gestionar</option>
-                                <option value="agendado">Agendado</option>
-                                <option value="realizado">Realizado</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="procedure">Tipo de Procedimientos</label>
-                            <select id="procedure" name="procedure">
-                                <option value="">Todos</option>
-                                <option value="cirugia">Cirugía</option>
-                                <option value="radioterapia">Radioterapia</option>
-                                <option value="quimioterapia">Quimioterapia</option>
-                                <option value="consulta">Consulta</option>
-                                <option value="imagenes">Imágenes</option>
-                                <option value="laboratorio">Laboratorio</option>
-                                <option value="patologia">Patología</option>
-                            </select>
-                        </div>
+    <label for="date_from">Desde</label>
+    <input type="date" id="date_from" name="date_from" value="{{ filtros.date_from }}">
+</div>
+<div class="form-group">
+    <label for="date_to">Hasta</label>
+    <input type="date" id="date_to" name="date_to" value="{{ filtros.date_to }}">
+</div>
+<div class="form-group">
+    <label for="status">Estado de la Solicitud</label>
+    <select id="status" name="status">
+        <option value="" {% if not filtros.status %}selected{% endif %}>Todos</option>
+        <option value="pendiente" {% if filtros.status == 'pendiente' %}selected{% endif %}>Pendiente</option>
+        <option value="en_gestion" {% if filtros.status == 'en_gestion' %}selected{% endif %}>En gestión</option>
+        <option value="por_gestionar" {% if filtros.status == 'por_gestionar' %}selected{% endif %}>Por gestionar</option>
+        <option value="agendado" {% if filtros.status == 'agendado' %}selected{% endif %}>Agendado</option>
+        <option value="realizado" {% if filtros.status == 'realizado' %}selected{% endif %}>Realizado</option>
+    </select>
+</div>
+<div class="form-group">
+    <label for="procedure">Tipo de Procedimientos</label>
+    <select id="procedure" name="procedure">
+        <option value="" {% if not filtros.procedure %}selected{% endif %}>Todos</option>
+        <option value="cirugia" {% if filtros.procedure == 'cirugia' %}selected{% endif %}>Cirugía</option>
+        <option value="radioterapia" {% if filtros.procedure == 'radioterapia' %}selected{% endif %}>Radioterapia</option>
+        <option value="quimioterapia" {% if filtros.procedure == 'quimioterapia' %}selected{% endif %}>Quimioterapia</option>
+        <option value="consulta" {% if filtros.procedure == 'consulta' %}selected{% endif %}>Consulta</option>
+        <option value="imagenes" {% if filtros.procedure == 'imagenes' %}selected{% endif %}>Imágenes</option>
+        <option value="laboratorio" {% if filtros.procedure == 'laboratorio' %}selected{% endif %}>Laboratorio</option>
+        <option value="patologia" {% if filtros.procedure == 'patologia' %}selected{% endif %}>Patología</option>
+    </select>
+</div>
                     </div>
                     
                     <!-- Sección Agendamientos -->

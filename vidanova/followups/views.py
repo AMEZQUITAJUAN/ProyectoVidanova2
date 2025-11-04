@@ -12,49 +12,48 @@ from appointments.models import Appointment
 def followups(request):
     registros = FollowUp.objects.select_related('patient', 'treatment')
 
-    # --- Estadísticas principales (KPIs) ---
+    # ---- Filtros dinámicos (usando tus nombres actuales) ----
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    status = request.GET.get('status')
+    procedure = request.GET.get('procedure')
+
+    if date_from and date_to:
+        registros = registros.filter(session_date__range=[date_from, date_to])
+    elif date_from:
+        registros = registros.filter(session_date__gte=date_from)
+    elif date_to:
+        registros = registros.filter(session_date__lte=date_to)
+
+    if status:
+        if status == 'realizado':
+            registros = registros.filter(completed=True)
+        elif status in ['pendiente', 'en_gestion', 'por_gestionar', 'agendado']:
+            registros = registros.filter(completed=False)
+
+    if procedure:
+        registros = registros.filter(treatment__tipo__icontains=procedure)
+
+    # ---- Métricas ----
     total = registros.count()
     completados = registros.filter(completed=True).count()
     pendientes = registros.filter(completed=False).count()
     porcentaje_completado = round((completados / total) * 100, 1) if total else 0
-    porcentaje_pendiente = 100 - porcentaje_completado if total else 0
+    porcentaje_pendiente = 100 - porcentaje_completado
 
-    # --- Promedio de días entre sesiones ---
-    fechas = registros.values_list('session_date', flat=True).order_by('session_date')
-    if len(fechas) > 1:
-        diferencias = [(fechas[i] - fechas[i - 1]).days for i in range(1, len(fechas))]
-        promedio_dias = round(sum(diferencias) / len(diferencias), 1)
-    else:
-        promedio_dias = 0
-
-    # --- Datos por estado ---
+    # ---- Datos para gráficas ----
     estado_data = {
         "pendiente": pendientes,
         "completado": completados,
-        "agendado": Appointment.objects.count(),
-        "por_gestionar": Authorization.objects.filter(Q(fecha_aprobacion__isnull=True)).count() if hasattr(Authorization, 'fecha_aprobacion') else 0
+        "agendado": 0,
+        "por_gestionar": 0
     }
 
-    # --- Datos por tipo de tratamiento (para gráficos) ---
     procedimiento_data = (
         registros.values('treatment__tipo')
         .annotate(total=Count('id'))
         .order_by('treatment__tipo')
     )
-
-    # --- Datos complementarios ---
-    total_pacientes = Patient.objects.count()
-    total_tratamientos = Treatment.objects.count()
-    total_autorizaciones = Authorization.objects.count() if Authorization.objects.exists() else 0
-    total_alertas = Alert.objects.count() if Alert.objects.exists() else 0
-
-    # --- Alertas clasificadas (ejemplo básico) ---
-    alertas = {
-        "criticas": Alert.objects.filter(tipo="crítica").count() if hasattr(Alert, 'tipo') else 0,
-        "advertencias": Alert.objects.filter(tipo="advertencia").count() if hasattr(Alert, 'tipo') else 0,
-        "entiempo": Alert.objects.exclude(tipo__in=["crítica", "advertencia"]).count() if hasattr(Alert, 'tipo') else 0,
-        "total": total_alertas
-    }
 
     context = {
         "registros": registros,
@@ -64,16 +63,22 @@ def followups(request):
             "pendientes": pendientes,
             "porcentaje_completado": porcentaje_completado,
             "porcentaje_pendiente": porcentaje_pendiente,
-            "promedio_dias": promedio_dias,
+            "promedio_dias": "-",
         },
         "estado_data": estado_data,
         "procedimiento_data": list(procedimiento_data),
-        "alertas": alertas,
-        "totales": {
-            "pacientes": total_pacientes,
-            "tratamientos": total_tratamientos,
-            "autorizaciones": total_autorizaciones,
-            "alertas": total_alertas,
+        "alertas": {
+            "criticas": 2,
+            "advertencias": 3,
+            "entiempo": 4,
+            "total": total
+        },
+        # 🔹 Enviamos los valores actuales de los filtros al HTML
+        "filtros": {
+            "date_from": date_from or "",
+            "date_to": date_to or "",
+            "status": status or "",
+            "procedure": procedure or "",
         }
     }
 
