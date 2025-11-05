@@ -8,6 +8,7 @@ from treatments.models import Treatment
 from authorizations.models import Authorizations as Authorization
 from alerts.models import Alert
 from appointments.models import Appointment
+from django.db.models import Max
 import json
 
 def followup_detail(request, patient_id):
@@ -111,3 +112,25 @@ def followups(request):
     print("Procedimiento data:", list(procedimiento_data))
 
     return render(request, 'followups.html', context)
+
+def followup_detail(request, patient_id):
+    # Obtener el paciente
+    paciente = get_object_or_404(Patient, id=patient_id)
+
+    # Obtener todos los seguimientos del paciente
+    seguimientos = FollowUp.objects.filter(patient=paciente).select_related('treatment').order_by('-session_date')
+
+    # Calcular resumen
+    total = seguimientos.count()
+    ultima_actualizacion = seguimientos.aggregate(ultima=Max('session_date'))['ultima']
+
+    context = {
+        "paciente": paciente,
+        "seguimientos": seguimientos,
+        "resumen": {
+            "total": total,
+            "ultima_actualizacion": ultima_actualizacion,
+        }
+    }
+
+    return render(request, "followup_detail.html", context)

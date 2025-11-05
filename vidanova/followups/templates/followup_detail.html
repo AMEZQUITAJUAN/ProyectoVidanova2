@@ -1,46 +1,51 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Detalle del Paciente - {{ paciente.nombre }}{% endblock %}
 
 {% block content %}
-<section class="section">
-    <div class="card">
-        <h2>Seguimientos de {{ paciente.nombre }}</h2>
-        <p><strong>Documento:</strong> {{ paciente.numero_documento }}</p>
-        <p><strong>EPS:</strong> {{ paciente.eps }}</p>
-        <hr>
+<div style="background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <h2 style="color: #1f2937;">📋 Seguimiento de {{ paciente.nombre }}</h2>
+    <p><strong>Documento:</strong> {{ paciente.tipo_documento }} {{ paciente.numero_documento }}</p>
+    <p><strong>EPS:</strong> {{ paciente.eps|default:"-" }}</p>
+    <p><strong>Tipo de cáncer:</strong> {{ paciente.tipo_cancer|default:"-" }}</p>
+    <p><strong>Total de seguimientos:</strong> {{ resumen.total }}</p>
+    <p><strong>Última actualización:</strong> {{ resumen.ultima_actualizacion|date:"d/m/Y" }}</p>
+</div>
 
-        <h3>Resumen</h3>
-        <ul>
-            <li>Total seguimientos: {{ stats.total }}</li>
-            <li>Completados: {{ stats.completados }}</li>
-            <li>Pendientes: {{ stats.pendientes }}</li>
-        </ul>
+<br>
 
-        <h3>Detalle de sesiones</h3>
-        <table border="1" cellspacing="0" cellpadding="6">
-            <thead>
-                <tr>
-                    <th>Tratamiento</th>
-                    <th>Fecha</th>
-                    <th>Completado</th>
-                    <th>Motivo de interrupción</th>
+<div style="background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <h3 style="color: #1f2937;">Historial de Seguimientos</h3>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+        <thead>
+            <tr style="background: #f3f4f6;">
+                <th style="padding: 12px; text-align: left;">Fecha de sesión</th>
+                <th style="padding: 12px; text-align: left;">Tipo de tratamiento</th>
+                <th style="padding: 12px; text-align: left;">Estado</th>
+                <th style="padding: 12px; text-align: left;">Observaciones</th>
+                <th style="padding: 12px; text-align: left;">Motivo interrupción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in seguimientos %}
+                <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 12px;">{{ f.session_date|date:"d/m/Y" }}</td>
+                    <td style="padding: 12px;">{{ f.treatment.tipo }}</td>
+                    <td style="padding: 12px;">{% if f.completed %}✅ Completado{% else %}⏳ Pendiente{% endif %}</td>
+                    <td style="padding: 12px;">{{ f.notes|default:"-" }}</td>
+                    <td style="padding: 12px;">{{ f.interruption_reason|default:"-" }}</td>
                 </tr>
-            </thead>
-            <tbody>
-                {% for s in seguimientos %}
+            {% empty %}
                 <tr>
-                    <td>{{ s.treatment.tipo }}</td>
-                    <td>{{ s.session_date }}</td>
-                    <td>{% if s.completed %}✅{% else %}❌{% endif %}</td>
-                    <td>{{ s.interruption_reason|default:"-" }}</td>
+                    <td colspan="5" style="text-align:center; padding:16px;">No hay seguimientos registrados.</td>
                 </tr>
-                {% empty %}
-                <tr><td colspan="4" style="text-align:center;">No hay registros</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
-        <br>
-        <a href="{% url 'followups' %}" class="btn" style="background: #6b7280; color: white;">← Volver</a>
-    </div>
-</section>
+<br>
+<a href="/seguimiento/" style="color: #3b82f6;">← Volver al tablero</a>
+
 {% endblock %}
