@@ -17,14 +17,19 @@
 
 <div style="background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
     <h3 style="color: #1f2937;">Historial de Seguimientos</h3>
+
+    <div style="margin-bottom: 16px;">
+        <button class="btn" style="background:#22c55e; color:white;" onclick="openModal()">➕ Nuevo seguimiento</button>
+    </div>
+
     <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
         <thead>
             <tr style="background: #f3f4f6;">
-                <th style="padding: 12px; text-align: left;">Fecha de sesión</th>
-                <th style="padding: 12px; text-align: left;">Tipo de tratamiento</th>
-                <th style="padding: 12px; text-align: left;">Estado</th>
-                <th style="padding: 12px; text-align: left;">Observaciones</th>
-                <th style="padding: 12px; text-align: left;">Motivo interrupción</th>
+                <th style="padding: 12px;">Fecha de sesión</th>
+                <th style="padding: 12px;">Tipo de tratamiento</th>
+                <th style="padding: 12px;">Estado</th>
+                <th style="padding: 12px;">Motivo interrupción</th>
+                <th style="padding: 12px;">Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -33,8 +38,12 @@
                     <td style="padding: 12px;">{{ f.session_date|date:"d/m/Y" }}</td>
                     <td style="padding: 12px;">{{ f.treatment.tipo }}</td>
                     <td style="padding: 12px;">{% if f.completed %}✅ Completado{% else %}⏳ Pendiente{% endif %}</td>
-                    <td style="padding: 12px;">{{ f.notes|default:"-" }}</td>
                     <td style="padding: 12px;">{{ f.interruption_reason|default:"-" }}</td>
+                    <td style="padding: 12px; text-align:center;">
+                        <a href="{% url 'editar_followup' f.id %}" class="btn" style="background:#3b82f6; color:white;">✏️ Editar</a>
+                        <a href="{% url 'eliminar_followup' f.id %}" class="btn" style="background:#ef4444; color:white;"
+                           onclick="return confirm('¿Seguro que deseas eliminar este seguimiento?')">🗑️ Eliminar</a>
+                    </td>
                 </tr>
             {% empty %}
                 <tr>
@@ -48,4 +57,40 @@
 <br>
 <a href="/seguimiento/" style="color: #3b82f6;">← Volver al tablero</a>
 
+<!-- Modal para nuevo seguimiento -->
+<div id="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+  <div style="background:white; width:400px; margin:10% auto; padding:20px; border-radius:8px;">
+      <h3>Nuevo Seguimiento</h3>
+      <form method="POST" action="{% url 'agregar_followup' paciente.id %}">
+          {% csrf_token %}
+          <label>Tratamiento:</label><br>
+          <select name="treatment_id" required>
+              {% for t in tratamientos %}
+              <option value="{{ t.id }}">{{ t.tipo }}</option>
+              {% endfor %}
+          </select><br><br>
+
+          <label>Fecha de sesión:</label><br>
+          <input type="date" name="session_date" required><br><br>
+
+          <label>¿Completado?</label>
+          <input type="checkbox" name="completed"><br><br>
+
+          <label>Motivo de interrupción:</label><br>
+          <textarea name="interruption_reason"></textarea><br><br>
+
+          <button type="submit" style="background:#22c55e; color:white;">Guardar</button>
+          <button type="button" onclick="closeModal()">Cancelar</button>
+      </form>
+  </div>
+</div>
+
+<script>
+function openModal() {
+  document.getElementById('modal').style.display = 'block';
+}
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+}
+</script>
 {% endblock %}

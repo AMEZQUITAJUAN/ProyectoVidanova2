@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Editar Seguimiento</h2>
+<form method="POST">
+    {% csrf_token %}
+    <label>Tratamiento:</label><br>
+    <select name="treatment_id" required>
+        {% for t in tratamientos %}
+        <option value="{{ t.id }}" {% if seguimiento.treatment.id == t.id %}selected{% endif %}>{{ t.tipo }}</option>
+        {% endfor %}
+    </select><br><br>
+
+    <label>Fecha de sesión:</label><br>
+    <input type="date" name="session_date" value="{{ seguimiento.session_date }}" required><br><br>
+
+    <label>¿Completado?</label>
+    <input type="checkbox" name="completed" {% if seguimiento.completed %}checked{% endif %}><br><br>
+
+    <label>Motivo de interrupción:</label><br>
+    <textarea name="interruption_reason">{{ seguimiento.interruption_reason }}</textarea><br><br>
+
+    <button type="submit" style="background:#3b82f6; color:white;">Guardar cambios</button>
+    <a href="{% url 'followup_detail' seguimiento.patient.id %}" style="margin-left:10px;">Cancelar</a>
+</form>
+{% endblock %}
