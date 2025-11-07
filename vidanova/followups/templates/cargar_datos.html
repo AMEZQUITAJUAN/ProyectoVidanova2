@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Cargar datos SIISA{% endblock %}
+
+{% block content %}
+<div style="max-width: 700px; margin: 30px auto; padding: 20px; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+  <h2 style="color:#1f2937; text-align:center;">Cargar archivo SIISA (.xlsx o .csv)</h2>
+  <p style="text-align:center; color:#4b5563;">Sube el archivo exportado desde SIISA o Excel. Se convertirá automáticamente a formato limpio (.csv).</p>
+
+  {% if error %}
+    <div style="background:#fee2e2; color:#b91c1c; padding:10px; border-radius:6px; margin-bottom:15px;">
+      ⚠️ {{ error }}
+    </div>
+  {% elif message %}
+    <div style="background:#d1fae5; color:#065f46; padding:10px; border-radius:6px; margin-bottom:15px;">
+      ✅ {{ message }}
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" style="text-align:center;">
+    {% csrf_token %}
+    <input type="file" name="archivo" accept=".csv,.xls,.xlsx" required
+           style="padding:10px; border:1px solid #ccc; border-radius:6px; width:80%; margin-bottom:15px;">
+    <br>
+    <button type="submit" class="btn"
+            style="background:#2563eb; color:white; padding:10px 20px; border:none; border-radius:6px; cursor:pointer;">
+      📤 Subir y procesar
+    </button>
+  </form>
+
+  <hr style="margin:25px 0;">
+
+  <div style="text-align:center;">
+    <a href="{% url 'analisis_institucional' %}" 
+       style="color:#2563eb; font-weight:500; text-decoration:none;">
+      🔍 Ir al análisis institucional
+    </a>
+  </div>
+  <a href="/seguimiento/" style="color: #3b82f6;">← Volver al tablero</a>
+</div>
+{% endblock %}

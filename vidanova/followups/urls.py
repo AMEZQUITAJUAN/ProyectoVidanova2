@@ -7,4 +7,7 @@ urlpatterns = [
     path('paciente/<int:patient_id>/agregar/', views.agregar_followup, name='agregar_followup'),
     path('editar/<int:pk>/', views.editar_followup, name='editar_followup'),
     path('eliminar/<int:pk>/', views.eliminar_followup, name='eliminar_followup'),
+    path('cargar-datos/', views.cargar_datos, name='cargar_datos'),
+    path('analisis-institucional/', views.analisis_institucional, name='analisis_institucional'),
+
 ]

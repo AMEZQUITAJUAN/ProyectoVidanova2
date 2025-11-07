@@ -16,4 +16,12 @@
         {% block content %}{% endblock %}
     </main>
 </body>
+{% if messages %}
+  <div style="margin:10px; padding:10px; background:#dcfce7; border-radius:8px; color:#166534;">
+    {% for message in messages %}
+      {{ message }}
+    {% endfor %}
+  </div>
+{% endif %}
+
 </html>
