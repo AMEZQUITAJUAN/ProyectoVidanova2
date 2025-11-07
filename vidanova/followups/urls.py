@@ -9,5 +9,6 @@ urlpatterns = [
     path('eliminar/<int:pk>/', views.eliminar_followup, name='eliminar_followup'),
     path('cargar-datos/', views.cargar_datos, name='cargar_datos'),
     path('analisis-institucional/', views.analisis_institucional, name='analisis_institucional'),
+    path('ver-datos/', views.ver_datos_siisa, name='ver_datos_siisa'),
 
 ]

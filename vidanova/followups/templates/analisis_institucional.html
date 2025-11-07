@@ -41,41 +41,24 @@
   - Si ocurre cualquier error devolvemos [] o {} por defecto.
 */
 
-function safeJsonParse(templateVar) {
-  try {
-    // templateVar viene ya como cadena JSON (ej: '["a","b"]')
-    return JSON.parse(templateVar);
-  } catch (e) {
-    // si falla, intentamos parsear como 'null' o devolvemos array vacío
-    try {
-      // fallback: si es algo como "None" o vacío, esto devuelve []
-      return JSON.parse(templateVar || "[]");
-    } catch (e2) {
-      return [];
-    }
-  }
-}
+// Las variables ya vienen serializadas como JSON desde la vista
+const diagLabels = JSON.parse('{{ diag_labels|default:"[]"|escapejs }}');
+const diagValues = JSON.parse('{{ diag_values|default:"[]"|escapejs }}');
 
-// Las siguientes líneas inyectan las variables con escapejs para evitar
-// que caracteres especiales rompan el JS. Si la variable no existe,
-// el filtro default produce "[]".
-const diagLabels = safeJsonParse('{{ diag_labels|default:"[]"|escapejs }}');
-const diagValues = safeJsonParse('{{ diag_values|default:"[]"|escapejs }}');
+const genderLabels = JSON.parse('{{ gender_labels|default:"[]"|escapejs }}');
+const genderValues = JSON.parse('{{ gender_values|default:"[]"|escapejs }}');
 
-const genderLabels = safeJsonParse('{{ gender_labels|default:"[]"|escapejs }}');
-const genderValues = safeJsonParse('{{ gender_values|default:"[]"|escapejs }}');
+const ageLabels = JSON.parse('{{ age_labels|default:"[]"|escapejs }}');
+const ageValues = JSON.parse('{{ age_values|default:"[]"|escapejs }}');
 
-const ageLabels = safeJsonParse('{{ age_labels|default:"[]"|escapejs }}');
-const ageValues = safeJsonParse('{{ age_values|default:"[]"|escapejs }}');
+const stateLabels = JSON.parse('{{ state_labels|default:"[]"|escapejs }}');
+const stateValues = JSON.parse('{{ state_values|default:"[]"|escapejs }}');
 
-const stateLabels = safeJsonParse('{{ state_labels|default:"[]"|escapejs }}');
-const stateValues = safeJsonParse('{{ state_values|default:"[]"|escapejs }}');
+const monthLabels = JSON.parse('{{ month_labels|default:"[]"|escapejs }}');
+const monthValues = JSON.parse('{{ month_values|default:"[]"|escapejs }}');
 
-const monthLabels = safeJsonParse('{{ month_labels|default:"[]"|escapejs }}');
-const monthValues = safeJsonParse('{{ month_values|default:"[]"|escapejs }}');
-
-const cntLabels = safeJsonParse('{{ cnt_labels|default:"[]"|escapejs }}');
-const cntValues = safeJsonParse('{{ cnt_values|default:"[]"|escapejs }}');
+const cntLabels = JSON.parse('{{ cnt_labels|default:"[]"|escapejs }}');
+const cntValues = JSON.parse('{{ cnt_values|default:"[]"|escapejs }}');
 
 /* Funciones para crear gráficas (Chart.js) */
 function makeBar(id, labels, values, labelName = 'Count') {

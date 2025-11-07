@@ -208,27 +208,29 @@
 
         <!-- Gráficas -->
         <section class="section">
+            {% if error %}
+            <div class="alert warning" style="text-align: center; padding: 20px;">
+                <i class="fas fa-exclamation-triangle"></i> {{ error }}
+            </div>
+            {% else %}
             <div class="grid-2">
+                <!-- Gráfico de Top 5 Diagnósticos -->
                 <div class="card">
-                    <h3><i class="fas fa-pie-chart"></i> Estado de la Solicitud</h3>
-                    <div style="height: 300px; margin-top: 16px;">
-                        <canvas id="statusChart"></canvas>
-                    </div>
-                    <div style="margin-top: 16px; font-size: 12px; color: #6b7280;">
-                        <span style="display: inline-block; width: 12px; height: 12px; background: #3b82f6; border-radius: 2px; margin-right: 8px;"></span>Pendiente
-                        <span style="display: inline-block; width: 12px; height: 12px; background: #10b981; border-radius: 2px; margin-left: 16px; margin-right: 8px;"></span>Agendado
-                        <span style="display: inline-block; width: 12px; height: 12px; background: #f59e0b; border-radius: 2px; margin-left: 16px; margin-right: 8px;"></span>Realizado
-                        <span style="display: inline-block; width: 12px; height: 12px; background: #ef4444; border-radius: 2px; margin-left: 16px; margin-right: 8px;"></span>Por Gestionar
+                    <h3><i class="fas fa-chart-bar"></i> Top 5 Diagnósticos más Frecuentes</h3>
+                    <div style="height: 300px; margin-top: 16px; position: relative;">
+                        <canvas id="chartDiagnostico"></canvas>
                     </div>
                 </div>
                 
+                <!-- Gráfico de Distribución por Género -->
                 <div class="card">
-                    <h3><i class="fas fa-bar-chart"></i> Oportunidad por Procedimientos</h3>
-                    <div style="height: 300px; margin-top: 16px;">
-                        <canvas id="procedureChart"></canvas>
+                    <h3><i class="fas fa-venus-mars"></i> Distribución por Género</h3>
+                    <div style="height: 300px; margin-top: 16px; position: relative;">
+                        <canvas id="chartGenero"></canvas>
                     </div>
                 </div>
             </div>
+            {% endif %}
         </section>
 
         <!-- Sección de Barreras y Próximas IPS -->
@@ -368,64 +370,74 @@
     </div>
 
     <!-- 📊 SCRIPT DE GRÁFICAS -->
-     
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 🟢 Pasar los datos de Django a JS usando JSON seguro
-    const estadoData = JSON.parse('{{ estado_data|safe|escapejs }}');
-    const procedimientoData = JSON.parse('{{ procedimiento_data|safe|escapejs }}');
+    // Datos de diagnósticos
+    const diagLabels = JSON.parse('{{ top_diagnosticos_labels|default:"[]"|escapejs }}');
+    const diagValues = JSON.parse('{{ top_diagnosticos_values|default:"[]"|escapejs }}');
 
-    console.log("Estado data:", estadoData);
-    console.log("Procedimiento data:", procedimientoData);
+    // Datos de género
+    const generoLabels = JSON.parse('{{ genero_labels|default:"[]"|escapejs }}');
+    const generoValues = JSON.parse('{{ genero_values|default:"[]"|escapejs }}');
 
-    // ---- Gráfica de Estado (Donut) ----
-    const statusCtx = document.getElementById('statusChart')?.getContext('2d');
+    // Colores para las gráficas
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-    if (statusCtx) {
-        new Chart(statusCtx, {
-            type: 'doughnut',
+    // ---- Gráfica de Top 5 Diagnósticos (Barras) ----
+    const diagCtx = document.getElementById('chartDiagnostico')?.getContext('2d');
+    if (diagCtx) {
+        new Chart(diagCtx, {
+            type: 'bar',
             data: {
-                labels: ['Pendiente', 'Completado', 'Agendado', 'Por Gestionar'],
+                labels: diagLabels,
                 datasets: [{
-                    data: [
-                        estadoData.pendiente || 0,
-                        estadoData.completado || 0,
-                        estadoData.agendado || 0,
-                        estadoData.por_gestionar || 0
-                    ],
-                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+                    label: 'Cantidad de Pacientes',
+                    data: diagValues,
+                    backgroundColor: colors,
+                    borderWidth: 1
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } }
+                plugins: {
+                    legend: { display: false },
+                    title: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
             }
         });
     }
 
-    // ---- Gráfica de Procedimientos (Barras) ----
-    const procedureCtx = document.getElementById('procedureChart')?.getContext('2d');
-    if (procedureCtx) {
-        const labels = procedimientoData.map(p => p.treatment__tipo);
-        const valores = procedimientoData.map(p => p.total);
-
-        new Chart(procedureCtx, {
-            type: 'bar',
+    // ---- Gráfica de Distribución por Género (Dona) ----
+    const generoCtx = document.getElementById('chartGenero')?.getContext('2d');
+    if (generoCtx) {
+        new Chart(generoCtx, {
+            type: 'doughnut',
             data: {
-                labels: labels,
+                labels: generoLabels,
                 datasets: [{
-                    label: 'Total por Procedimiento',
-                    data: valores,
-                    backgroundColor: '#3b82f6'
+                    data: generoValues,
+                    backgroundColor: colors.slice(0, generoLabels.length),
+                    borderWidth: 1
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    }
                 }
             }
         });
