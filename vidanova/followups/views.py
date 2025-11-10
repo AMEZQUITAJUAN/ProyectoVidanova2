@@ -15,7 +15,7 @@ from treatments.models import Treatment
 from django.db.models import Count
 from django.core.files.storage import FileSystemStorage
 from django.http import HttpResponse
-
+from .services import load_dashboard_dataframe, compute_institutional_metrics
 
 # --- DASHBOARD PRINCIPAL ---
 def followups(request):
@@ -130,27 +130,26 @@ def followups(request):
 # --- DETALLE DE PACIENTE ---
 def followup_detail(request, patient_id):
     paciente = get_object_or_404(Patient, id=patient_id)
-
     seguimientos = FollowUp.objects.filter(patient=paciente).select_related('treatment').order_by('-session_date')
 
     total = seguimientos.count()
     ultima_actualizacion = seguimientos.aggregate(ultima=Max('session_date'))['ultima']
 
+    tratamientos = Treatment.objects.all()
     context = {
         "paciente": paciente,
         "seguimientos": seguimientos,
         "resumen": {
             "total": total,
             "ultima_actualizacion": ultima_actualizacion,
-        }
+        },
+        "tratamientos": tratamientos,
     }
-
     return render(request, "followup_detail.html", context)
 
-
 # --- AGREGAR ---
-def agregar_followup(request, pk):
-    paciente = get_object_or_404(Patient, pk=pk)
+def agregar_followup(request, patient_id):
+    paciente = get_object_or_404(Patient, pk=patient_id)
     if request.method == 'POST':
         treatment_id = request.POST.get('treatment_id')
         session_date = request.POST.get('session_date')
@@ -164,11 +163,10 @@ def agregar_followup(request, pk):
             completed=completed,
             interruption_reason=reason
         )
-        return redirect('detalle_paciente', pk=paciente.id)
+        return redirect('followup_detail', patient_id=paciente.id)
 
     tratamientos = Treatment.objects.all()
     return render(request, 'followup_detail.html', {'paciente': paciente, 'tratamientos': tratamientos})
-
 
 # --- EDITAR ---
 def editar_followup(request, pk):
@@ -246,48 +244,16 @@ def cargar_datos(request):
     return render(request, "cargar_datos.html")
 
 # --- Vista: análisis / dashboard institucional con gráficas ---
+from .services import load_dashboard_dataframe, compute_institutional_metrics
+
 def analisis_institucional(request):
-    """
-    Lee el archivo procesado (processed_latest.csv), genera datos agregados
-    para las gráficas institucionales.
-    """
-    csv_path = os.path.join(settings.MEDIA_ROOT, "uploads", "processed_latest.csv")
-    if not os.path.exists(csv_path):
+    df, csv_path = load_dashboard_dataframe()
+    if df is None:
         return render(request, "analisis_institucional.html", {"error": "⚠️ No hay archivo cargado aún."})
-
-    # --- Leer archivo ---
-    df = pd.read_csv(csv_path)
-    df.columns = _normalize_columns(df.columns)
-
-    # --- Ajustar nombres según tus columnas ---
-    # (en caso de variaciones como "estado_de_solicitud" o "estado_de__solicitud")
-    posibles = df.columns
-    print("Columnas detectadas:", posibles)
-
-    # --- Grupos por diagnóstico ---
-    diag_data = df["grupo_diagnostico"].value_counts().head(10)
-    diag_labels = diag_data.index.tolist()
-    diag_values = diag_data.values.tolist()
-
-    # --- Distribución por género ---
-    if "genero" in df.columns:
-        gender_data = df["genero"].value_counts()
-        gender_labels = gender_data.index.tolist()
-        gender_values = gender_data.values.tolist()
-    else:
-        gender_labels, gender_values = [], []
-
-    # --- Distribución por edad (agrupada) ---
-    if "edad" in df.columns:
-        df["edad"] = pd.to_numeric(df["edad"], errors="coerce")
-        bins = [0, 20, 30, 40, 50, 60, 70, 80, 120]
-        labels = ["<20", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"]
-        df["rango_edad"] = pd.cut(df["edad"], bins=bins, labels=labels, right=False)
-        age_data = df["rango_edad"].value_counts().sort_index()
-        age_labels = age_data.index.tolist()
-        age_values = age_data.values.tolist()
-    else:
-        age_labels, age_values = [], []
+    metrics = compute_institutional_metrics(df)
+    return render(request, "analisis_institucional.html", {
+        **{k: json.dumps(v) if isinstance(v, (list, dict)) else v for k, v in metrics.items()}
+    })
 
     # --- Estado de solicitud (Realizado / Pendiente) ---
     if "estado_de_solicitud" in df.columns:
