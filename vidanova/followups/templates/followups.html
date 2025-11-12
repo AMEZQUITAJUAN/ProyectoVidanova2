@@ -116,57 +116,13 @@
                         </button>
                     </div>
                 </form>
-            </div>
-        </section>
-
-        <!-- Tiempos Críticos -->
-        <section class="section">
-            <div class="card">
-                <h2><i class="fas fa-exclamation-triangle"></i> Tiempos críticos:</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px;">
-                    <div class="alert critical">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-exclamation-circle" style="font-size: 24px;"></i>
-                            <div>
-                                <div style="font-size: 24px; font-weight: bold;">2</div>
-                                <div>Alerta Crítica</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="alert warning">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-clock" style="font-size: 24px;"></i>
-                            <div>
-                                <div style="font-size: 24px; font-weight: bold;">3</div>
-                                <div>Advertencia</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="alert success">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-check-circle" style="font-size: 24px;"></i>
-                            <div>
-                                <div style="font-size: 24px; font-weight: bold;">4</div>
-                                <div>En Tiempo</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="alert info">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-list" style="font-size: 24px;"></i>
-                            <div>
-                                <div style="font-size: 24px; font-weight: bold;">9</div>
-                                <div>Total Casos</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 <!-- Buscador -->
                 <section class="search">
                     <input type="text" placeholder="🔍 Buscar paciente, caso o procedimiento" aria-label="Buscar">
                     <button class="btn" title="Buscar"><i class="bx bx-search"></i></button>
                 </section>
             </div>
+            
         </section>
 
         <!-- KPI Grid -->
@@ -222,14 +178,23 @@
                     </div>
                 </div>
                 
-                <!-- Gráfico de Distribución por Género -->
+
+                <!-- Gráfico de Estado de la Solicitud (Pastel) -->
                 <div class="card">
-                    <h3><i class="fas fa-venus-mars"></i> Distribución por Género</h3>
+                    <h3><i class="fas fa-pie-chart"></i> Estado de la Solicitud</h3>
                     <div style="height: 300px; margin-top: 16px; position: relative;">
-                        <canvas id="chartGenero"></canvas>
+                        <canvas id="chartEstadoSolicitud"></canvas>
                     </div>
                 </div>
             </div>
+
+                <!-- Gráfico de Oportunidad por Procedimiento -->
+                <div class="card">
+                    <h3><i class="fas fa-stethoscope"></i> Oportunidad por Procedimiento</h3>
+                    <div style="height: 300px; margin-top: 16px; position: relative;">
+                        <canvas id="chartOportunidadProcedimiento"></canvas>
+                    </div>
+                </div>
             {% endif %}
         </section>
 
@@ -373,12 +338,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const diagLabels = JSON.parse('{{ top_diagnosticos_labels|default:"[]"|escapejs }}');
     const diagValues = JSON.parse('{{ top_diagnosticos_values|default:"[]"|escapejs }}');
 
-    // Datos de género
-    const generoLabels = JSON.parse('{{ genero_labels|default:"[]"|escapejs }}');
-    const generoValues = JSON.parse('{{ genero_values|default:"[]"|escapejs }}');
+    // Datos de estado de solicitud
+    const estadoLabels = JSON.parse('{{ estado_solicitud_labels|default:"[]"|escapejs }}');
+    const estadoValues = JSON.parse('{{ estado_solicitud_values|default:"[]"|escapejs }}');
 
     // Colores para las gráficas
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+        // Datos de oportunidad por procedimiento
+        const oportunidadLabels = JSON.parse('{{ oportunidad_procedimiento_labels|default:"[]"|escapejs }}');
+        const oportunidadValues = JSON.parse('{{ oportunidad_procedimiento_values|default:"[]"|escapejs }}');
 
     // ---- Gráfica de Top 5 Diagnósticos (Barras) ----
     const diagCtx = document.getElementById('chartDiagnostico')?.getContext('2d');
@@ -411,17 +380,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ---- Gráfica de Distribución por Género (Dona) ----
-    const generoCtx = document.getElementById('chartGenero')?.getContext('2d');
-    if (generoCtx) {
-        new Chart(generoCtx, {
-            type: 'doughnut',
+    // ---- Gráfica de Estado de la Solicitud (Pastel) ----
+    const estadoCtx = document.getElementById('chartEstadoSolicitud')?.getContext('2d');
+    if (estadoCtx) {
+        new Chart(estadoCtx, {
+            type: 'pie',
             data: {
-                labels: generoLabels,
+                labels: estadoLabels,
                 datasets: [{
-                    data: generoValues,
-                    backgroundColor: colors.slice(0, generoLabels.length),
-                    borderWidth: 1
+                    data: estadoValues,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#fff'
                 }]
             },
             options: {
@@ -439,6 +409,37 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+        // ---- Gráfica de Oportunidad por Procedimiento (Barras) ----
+        const oportunidadCtx = document.getElementById('chartOportunidadProcedimiento')?.getContext('2d');
+        if (oportunidadCtx) {
+            new Chart(oportunidadCtx, {
+                type: 'bar',
+                data: {
+                    labels: oportunidadLabels,
+                    datasets: [{
+                        label: 'Cantidad de Procedimientos',
+                        data: oportunidadValues,
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true },
+                        title: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
+        }
 });
 </script>
 

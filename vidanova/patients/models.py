@@ -2,21 +2,36 @@
 from django.db import models
 
 class Patient(models.Model):
-    TIPS = [('CC','Cédula'), ('TI','Tarjeta'), ('CE','C.E.')]
-    STATUS = [('active','Activo'),('fallecido','Fallecido'),('no_acepta','No acepta')]
+    TIPOS_DOC = [
+        ('CC', 'Cédula de Ciudadanía'),
+        ('TI', 'Tarjeta de Identidad'),
+        ('CE', 'Cédula de Extranjería'),
+        ('PA', 'Pasaporte'),
+        ('OT', 'Otro'),
+    ]
 
-    nombre = models.CharField(max_length=200)
-    tipo_documento = models.CharField(max_length=10, choices=TIPS)
-    numero_documento = models.CharField(max_length=50, db_index=True)
-    fecha_nacimiento = models.DateField(null=True, blank=True)
-    sexo = models.CharField(max_length=2, null=True, blank=True)
-    eps = models.CharField(max_length=150, null=True, blank=True)
-    tipo_cancer = models.CharField(max_length=200, null=True, blank=True)
+    # 🔹 Identificación básica
+    tipo_documento = models.CharField(max_length=5, choices=TIPOS_DOC)
+    numero_documento = models.CharField(max_length=50, db_index=True, unique=True)
+
+    # 🔹 Datos personales
+    nombre_1 = models.CharField(max_length=100)
+    nombre_2 = models.CharField(max_length=100, null=True, blank=True)
+    apellido_1 = models.CharField(max_length=100)
+    apellido_2 = models.CharField(max_length=100, null=True, blank=True)
+    correo = models.EmailField(null=True, blank=True)
+    genero = models.CharField(max_length=50, null=True, blank=True)
+    edad = models.PositiveIntegerField(null=True, blank=True)
+    ocupacion = models.CharField(max_length=150, null=True, blank=True)
+    escolaridad = models.CharField(max_length=150, null=True, blank=True)
+    departamento_residencia = models.CharField(max_length=150, null=True, blank=True)
+    ciudad_residencia = models.CharField(max_length=150, null=True, blank=True)
+    estado_natural = models.CharField(max_length=100, null=True, blank=True)
+
+    # 🔹 Registro administrativo
     fecha_registro = models.DateTimeField(auto_now_add=True)
-    estado = models.CharField(max_length=20, choices=STATUS, default='active')
-
-    class Meta:
-        unique_together = ('tipo_documento','numero_documento')
+    activo = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.nombre} ({self.numero_documento})"
+        return f"{self.nombre_1} {self.apellido_1} ({self.numero_documento})"
+

@@ -41,7 +41,7 @@ def compute_institutional_metrics(df: pd.DataFrame):
     if "grupo_diagnostico" in df.columns:
         diag_data = df["grupo_diagnostico"].value_counts().head(10)
         out["diag_labels"] = diag_data.index.tolist()
-        out["diag_values"] = diag_data.values.tolist()
+        out["diag_values"] = [int(v) for v in diag_data.values.tolist()]
     else:
         out["diag_labels"], out["diag_values"] = [], []
 
@@ -49,7 +49,7 @@ def compute_institutional_metrics(df: pd.DataFrame):
     if "genero" in df.columns:
         g = df["genero"].value_counts()
         out["gender_labels"] = g.index.tolist()
-        out["gender_values"] = g.values.tolist()
+        out["gender_values"] = [int(v) for v in g.values.tolist()]
     else:
         out["gender_labels"], out["gender_values"] = [], []
 
@@ -61,7 +61,7 @@ def compute_institutional_metrics(df: pd.DataFrame):
         df["rango_edad"] = pd.cut(df["edad"], bins=bins, labels=labels, right=False)
         age_data = df["rango_edad"].value_counts().sort_index()
         out["age_labels"] = age_data.index.tolist()
-        out["age_values"] = age_data.values.tolist()
+        out["age_values"] = [int(v) for v in age_data.values.tolist()]
     else:
         out["age_labels"], out["age_values"] = [], []
 
@@ -70,7 +70,7 @@ def compute_institutional_metrics(df: pd.DataFrame):
         if col in df.columns:
             s = df[col].value_counts()
             out["state_labels"] = s.index.tolist()
-            out["state_values"] = s.values.tolist()
+            out["state_values"] = [int(v) for v in s.values.tolist()]
             break
     else:
         out["state_labels"], out["state_values"] = [], []
@@ -86,7 +86,7 @@ def compute_institutional_metrics(df: pd.DataFrame):
     if "mes_de_ordenamiento" in df.columns:
         month_data = df["mes_de_ordenamiento"].value_counts()
         out["month_labels"] = month_data.index.tolist()
-        out["month_values"] = month_data.values.tolist()
+        out["month_values"] = [int(v) for v in month_data.values.tolist()]
     else:
         out["month_labels"], out["month_values"] = [], []
 
@@ -95,3 +95,98 @@ def compute_institutional_metrics(df: pd.DataFrame):
     out["cnt_values"] = out["month_values"]
 
     return out
+
+
+def compute_request_status_from_db():
+    """
+    Calcula el estado de solicitud desde la BD (FollowUp).
+    Retorna diccionario con etiquetas y valores para gráfico pastel.
+    
+    Estados:
+    - Realizados: completed=True
+    - Pendientes: completed=False, interruption_reason vacío
+    - Agendados: completed=False, interruption_reason='agendado'
+    - En gestión: completed=False, interruption_reason='en_gestion'
+    - Por gestionar: completed=False, interruption_reason='por_gestionar'
+    """
+    from .models import FollowUp
+    
+    # Contar cada estado (conversión a int para JSON)
+    realizados = int(FollowUp.objects.filter(completed=True).count())
+    agendados = int(FollowUp.objects.filter(completed=False, interruption_reason='agendado').count())
+    en_gestion = int(FollowUp.objects.filter(completed=False, interruption_reason='en_gestion').count())
+    por_gestionar = int(FollowUp.objects.filter(completed=False, interruption_reason='por_gestionar').count())
+    pendientes = int(FollowUp.objects.filter(completed=False, interruption_reason__in=['', None]).count())
+    
+    return {
+        "estado_labels": ["Realizados", "Agendados", "Pendientes", "En Gestión", "Por Gestionar"],
+        "estado_values": [realizados, agendados, pendientes, en_gestion, por_gestionar]
+    }
+
+
+def compute_opportunity_by_procedure():
+    """
+    Calcula la "Oportunidad por procedimiento" desde la BD (Treatment).
+    Retorna diccionario con etiquetas (tipos de procedimiento) y valores (conteos).
+
+    Procedimientos esperados:
+    - Oncología
+    - Cirugía
+    - Radioterapia
+    - Quimioterapia
+    - Consulta
+    - Laboratorio
+    - Patología
+    - Procedimiento
+    - CUPS (código)
+    """
+    from treatments.models import Treatment
+    from patients.models import Patient
+
+    # Etiquetas que queremos mostrar
+    labels = ['Oncología', 'Cirugía', 'Radioterapia', 'Quimioterapia', 'Consulta', 'Laboratorio', 'Patología', 'Procedimiento', 'CUPS']
+    counts = {k: 0 for k in labels}
+
+    # Contar desde Treatment (tipos conocidos)
+    try:
+        counts['Quimioterapia'] = int(Treatment.objects.filter(tipo__iexact='QMT').count())
+        counts['Radioterapia'] = int(Treatment.objects.filter(tipo__iexact='RX').count())
+        counts['Cirugía'] = int(Treatment.objects.filter(tipo__iexact='CIR').count())
+    except Exception:
+        # Si hay problemas con el ORM, dejamos valores en 0
+        pass
+
+    # Contar pacientes con tipo_cancer que contenga 'onc' -> Oncología aproximada
+    try:
+        counts['Oncología'] = int(Patient.objects.filter(tipo_cancer__icontains='onc').count())
+    except Exception:
+        pass
+
+    # Intentar enriquecer desde el CSV procesado para consultas, laboratorio, patología, procedimiento y CUPS
+    csv_path = os.path.join(settings.MEDIA_ROOT, 'uploads', 'processed_latest.csv')
+    if os.path.exists(csv_path):
+        try:
+            df = pd.read_csv(csv_path)
+            df.columns = normalize_columns(df.columns)
+
+            # columnas candidatas donde puede aparecer el procedimiento o servicio
+            candidate_cols = [c for c in df.columns if any(x in c for x in ('proced', 'servic', 'cups', 'servicio', 'procedimiento'))]
+            # Para cada label, sumar filas cuyo valor contenga la palabra (heurística)
+            for label in ['Consulta', 'Laboratorio', 'Patología', 'Procedimiento', 'CUPS']:
+                total = 0
+                low = label.lower()
+                for col in candidate_cols:
+                    try:
+                        vals = df[col].astype(str).str.lower()
+                        total += int(vals.str.contains(low, na=False).sum())
+                    except Exception:
+                        continue
+                counts[label] = total
+        except Exception:
+            # Si lectura falla, seguimos con los datos que tenemos
+            pass
+
+    return {
+        "procedimiento_labels": labels,
+        "procedimiento_values": [int(counts[l]) for l in labels]
+    }
