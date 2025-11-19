@@ -96,33 +96,37 @@ def compute_institutional_metrics(df: pd.DataFrame):
 
     return out
 
-
 def compute_request_status_from_db():
     """
-    Calcula el estado de solicitud desde la BD (FollowUp).
-    Retorna diccionario con etiquetas y valores para gráfico pastel.
-    
-    Estados:
-    - Realizados: completed=True
-    - Pendientes: completed=False, interruption_reason vacío
-    - Agendados: completed=False, interruption_reason='agendado'
-    - En gestión: completed=False, interruption_reason='en_gestion'
-    - Por gestionar: completed=False, interruption_reason='por_gestionar'
+    Calcula el estado de solicitud usando SOLO los campos reales del modelo FollowUp.
     """
     from .models import FollowUp
-    
-    # Contar cada estado (conversión a int para JSON)
-    realizados = int(FollowUp.objects.filter(completed=True).count())
-    agendados = int(FollowUp.objects.filter(completed=False, interruption_reason='agendado').count())
-    en_gestion = int(FollowUp.objects.filter(completed=False, interruption_reason='en_gestion').count())
-    por_gestionar = int(FollowUp.objects.filter(completed=False, interruption_reason='por_gestionar').count())
-    pendientes = int(FollowUp.objects.filter(completed=False, interruption_reason__in=['', None]).count())
-    
-    return {
-        "estado_labels": ["Realizados", "Agendados", "Pendientes", "En Gestión", "Por Gestionar"],
-        "estado_values": [realizados, agendados, pendientes, en_gestion, por_gestionar]
-    }
 
+    realizados = FollowUp.objects.filter(estado_solicitud__icontains='realizado').count()
+    agendados = FollowUp.objects.filter(estado_solicitud__icontains='agendado').count()
+    en_gestion = FollowUp.objects.filter(estado_solicitud__icontains='gestion').count()
+    por_gestionar = FollowUp.objects.filter(estado_solicitud__icontains='por gestionar').count()
+
+    pendientes = FollowUp.objects.exclude(
+        estado_solicitud__icontains='realizado'
+    ).exclude(
+        estado_solicitud__icontains='agendado'
+    ).exclude(
+        estado_solicitud__icontains='gestion'
+    ).exclude(
+        estado_solicitud__icontains='por gestionar'
+    ).count()
+
+    return {
+        "labels": ["Realizados", "Agendados", "Pendientes", "En Gestión", "Por Gestionar"],
+        "values": [
+            int(realizados),
+            int(agendados),
+            int(pendientes),
+            int(en_gestion),
+            int(por_gestionar)
+        ]
+    }
 
 def compute_opportunity_by_procedure():
     """

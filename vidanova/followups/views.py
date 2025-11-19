@@ -18,29 +18,109 @@ from django.http import HttpResponse
 from .services import load_dashboard_dataframe, compute_institutional_metrics, compute_request_status_from_db
 from .services import load_dashboard_dataframe, compute_institutional_metrics, compute_request_status_from_db, compute_opportunity_by_procedure
 # --- DASHBOARD PRINCIPAL ---
+# --- DASHBOARD PRINCIPAL ---
 def followups(request):
-    """
-    Dashboard principal que combina datos del CSV y de la base de datos
-    """
-    # 1. Cargar datos del CSV si existe
+
+    registros = FollowUp.objects.select_related('patient')
+
+    # -------------------------------
+    # 1. Filtros
+    # -------------------------------
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    status = request.GET.get('status')
+    procedure = request.GET.get('procedure')
+
+    if date_from and date_to:
+        registros = registros.filter(fecha_atencion__range=[date_from, date_to])
+    elif date_from:
+        registros = registros.filter(fecha_atencion__gte=date_from)
+    elif date_to:
+        registros = registros.filter(fecha_atencion__lte=date_to)
+
+    if status:
+        status = status.lower()
+        if status == "realizado":
+            registros = registros.filter(estado_solicitud__icontains="realizado")
+        elif status == "agendado":
+            registros = registros.filter(estado_solicitud__icontains="agendado")
+        else:
+            registros = registros.filter(estado_solicitud__icontains=status)
+
+    if procedure:
+        registros = registros.filter(tipo_procedimiento__icontains=procedure)
+
+    # -------------------------------
+    # 2. Mapeo oficial de estados
+    # -------------------------------
+    ESTADOS_REALIZADO = ["realizado", "completado"]
+    ESTADOS_AGENDADO = ["agendado", "en programación. prestador", "sin agenda"]
+    ESTADOS_PENDIENTE = [
+        "pendiente", "por gestionar", "en gestión", 
+        "pendiente reporte", "en gestión interna"
+    ]
+    ESTADOS_EXCLUIR = ["fallecido", "no acepta", "diferido", "control mayor 3 meses"]
+
+    def es_estado(followup, lista):
+        estado = (followup.estado_solicitud or "").lower().strip()
+        return any(e in estado for e in lista)
+
+    # -------------------------------
+    # 3. KPIs reales
+    # -------------------------------
+    total = registros.exclude(estado_solicitud__in=ESTADOS_EXCLUIR).count()
+
+    completados = sum(es_estado(f, ESTADOS_REALIZADO) for f in registros)
+    agendados = sum(es_estado(f, ESTADOS_AGENDADO) for f in registros)
+    pendientes = sum(es_estado(f, ESTADOS_PENDIENTE) for f in registros)
+
+    porcentaje_completado = round((completados / total) * 100, 1) if total else 0
+    porcentaje_pendiente = 100 - porcentaje_completado
+
+    # -------------------------------
+    # 4. Promedio de días entre solicitud y cita
+    # -------------------------------
+    diferencias = []
+    for f in registros:
+        if f.fecha_solicitud_cita and f.fecha_cita:
+            diff = (f.fecha_cita - f.fecha_solicitud_cita).days
+            if diff >= 0:
+                diferencias.append(diff)
+
+    promedio_dias = round(sum(diferencias) / len(diferencias), 1) if diferencias else None
+
+    # -------------------------------
+    # 5. Barreras reales desde BD
+    # -------------------------------
+    barreras_raw = registros.values('barrera').annotate(total=Count('id')).order_by('-total')
+
+    barreras_labels = [(b['barrera'] or "Sin dato") for b in barreras_raw]
+    barreras_values = [b['total'] for b in barreras_raw]
+
+
+    # -------------------------------
+    # 6. Gráfica de oportunidad por procedimiento
+    # -------------------------------
+
+
+    # ---------------------------------------------------------
+    # 1. CARGA DE CSV
+    # ---------------------------------------------------------
     csv_path = os.path.join(settings.MEDIA_ROOT, "uploads", "processed_latest.csv")
     csv_data = {}
-    
+
     if os.path.exists(csv_path):
         try:
             df = pd.read_csv(csv_path)
             df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
 
-            # Top 5 diagnósticos (soportamos varias posibles columnas de diagnóstico)
+            # Top diagnósticos (si aún los quieres)
             diag_col = None
             for c in ("diagnostico", "grupo_diagnostico", "diagnosticos"):
                 if c in df.columns:
                     diag_col = c
                     break
-            if diag_col:
-                diagnosticos = df[diag_col].value_counts().head(5).to_dict()
-            else:
-                diagnosticos = {}
+            diagnosticos = df[diag_col].value_counts().head(5).to_dict() if diag_col else {}
 
             # Distribución por género
             genero = df["genero"].value_counts().to_dict() if "genero" in df.columns else {}
@@ -53,17 +133,20 @@ def followups(request):
             }
         except Exception as e:
             print(f"Error al procesar CSV: {e}")
-    
-    # 2. Obtener datos de la base de datos
+
+         # ---------------------------------------------------------
+    # 2. CONSULTA BASE DE DATOS
+    # ---------------------------------------------------------
     registros = FollowUp.objects.select_related('patient')
-    
-    # --- Filtros ---
+
+    # ---------------------------------------------------------
+    # 3. FILTROS DEL DASHBOARD
+    # ---------------------------------------------------------
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     status = request.GET.get('status')
     procedure = request.GET.get('procedure')
 
-    # Filtro de fechas (usa fecha_atencion en lugar de session_date)
     if date_from and date_to:
         registros = registros.filter(fecha_atencion__range=[date_from, date_to])
     elif date_from:
@@ -71,25 +154,27 @@ def followups(request):
     elif date_to:
         registros = registros.filter(fecha_atencion__lte=date_to)
 
-    # Filtro de estado (usa estado_solicitud)
+    # Estado
     if status:
         if status.lower() == 'realizado':
             registros = registros.filter(estado_solicitud__icontains='realizado')
-        elif status.lower() in ['pendiente', 'en_gestion', 'por_gestionar', 'agendado']:
+        else:
             registros = registros.exclude(estado_solicitud__icontains='realizado')
 
-    # Filtro por tipo de procedimiento
+    # Procedimiento
     if procedure:
         registros = registros.filter(tipo_procedimiento__icontains=procedure)
 
-    # --- Estadísticas ---
+
+    # ---------------------------------------------------------
+    # 4. KPIs PRINCIPALES DEL DASHBOARD
+    # ---------------------------------------------------------
     total = registros.count()
     completados = registros.filter(estado_solicitud__icontains='realizado').count()
     pendientes = total - completados
     porcentaje_completado = round((completados / total) * 100, 1) if total else 0
     porcentaje_pendiente = 100 - porcentaje_completado
 
-   # --- Datos para las gráficas ---
     estado_data = {
         "pendiente": pendientes,
         "completado": completados,
@@ -97,6 +182,9 @@ def followups(request):
         "por_gestionar": registros.filter(estado_solicitud__icontains='por_gestionar').count()
     }
 
+    # ---------------------------------------------------------
+    # 5. TOP DE PROCEDIMIENTOS
+    # ---------------------------------------------------------
     procedimiento_data = list(
         registros.values('tipo_procedimiento')
         .annotate(total=Count('id'))
@@ -104,8 +192,44 @@ def followups(request):
     )
 
 
+    # ============================================================
+    # ============ 🔥 NUEVO: BARRERAS DESDE LA BD ================
+    # ============================================================
+    # Aquí se cargan los labels y valores reales desde FollowUp
 
-    # --- Contexto para el template ---
+    barreras_raw = (
+        registros.values("barrera")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+    )
+
+    barreras_labels = [b["barrera"] or "Sin dato" for b in barreras_raw]
+    barreras_values = [b["total"] for b in barreras_raw]
+
+
+    # ============================================================
+    # === 🔥 NUEVO: ESTADO DEL PROCEDIMIENTO (MAPEO OFICIAL) =====
+    # ============================================================
+
+    estado_mapeo = compute_request_status_from_db()
+    # 👉 Aquí se generan:
+    # estado_procedimiento_labels
+    # estado_procedimiento_values
+
+
+    # ============================================================
+    # === 🔥 NUEVO: OPORTUNIDAD POR PROCEDIMIENTO ================
+    # ============================================================
+
+    oportunidad = compute_opportunity_by_procedure()
+    # 👉 produce:
+    # oportunidad_procedimiento_labels
+    # oportunidad_procedimiento_values
+
+
+    # ---------------------------------------------------------
+    # 6. CONTEXTO PARA TEMPLATE HTML
+    # ---------------------------------------------------------
     context = {
         "registros": registros,
         "stats": {
@@ -117,6 +241,15 @@ def followups(request):
         },
         "estado_data": json.dumps(estado_data),
         "procedimiento_data": json.dumps(procedimiento_data),
+
+        # 🔥 NUEVOS DATOS PARA EL DASHBOARD
+        "barreras_labels": json.dumps(barreras_labels),
+        "barreras_values": json.dumps(barreras_values),
+        "estado_procedimiento_labels": json.dumps(estado_mapeo["labels"]),
+        "estado_procedimiento_values": json.dumps(estado_mapeo["values"]),
+        "oportunidad_procedimiento_labels": json.dumps(oportunidad["procedimiento_labels"]),
+        "oportunidad_procedimiento_values": json.dumps(oportunidad["procedimiento_values"]),
+
         "filtros": {
             "date_from": date_from or "",
             "date_to": date_to or "",
@@ -125,16 +258,10 @@ def followups(request):
         }
     }
 
-    # Obtener datos de oportunidad por procedimiento
-    oportunidad_procedimiento = compute_opportunity_by_procedure()
-    context["oportunidad_procedimiento_labels"] = json.dumps(oportunidad_procedimiento["procedimiento_labels"])
-    context["oportunidad_procedimiento_values"] = json.dumps(oportunidad_procedimiento["procedimiento_values"])
-
-    # Agregar datos del CSV si existen
     if csv_data:
         context.update(csv_data)
-    return render(request, 'followups.html', context)
 
+    return render(request, 'followups.html', context)
 
 # --- DETALLE DE PACIENTE ---
 def followup_detail(request, patient_id):

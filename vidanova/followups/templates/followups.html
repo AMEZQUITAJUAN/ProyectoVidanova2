@@ -89,19 +89,11 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="agrupadores">Agrupadores</label>
+                                <label for="agrupadores">Agrupador diagnóstico</label>
                                 <select id="priority" name="priority">
                                     <option value="">Todas</option>
-                                    <option value="agendado">Agendado</option>
-                                    <option value="realizado">Realizado</option>
-                                    <option value="En programación. prestador">En programación. prestador</option>
-                                    <option value="diferido">Diferido</option>
-                                    <option value="No Acepta">No Acepta</option>
-                                    <option value="Sin Agenda">Sin Agenda</option>
-                                    <option value="Control mayor 3 meses">Control mayor 3 meses</option>
-                                    <option value="Pendiente reporte">Pendiente reporte</option>
-                                    <option value="En gestión interna">En gestión interna</option>
-                                    <option value="Fallecido">Fallecido</option>
+                                    <option value="codigo">codigo</option>
+                                    <option value="agrupador">Agrupador</option>
                                 </select>
                             </div>
                         </div>
@@ -170,101 +162,21 @@
             </div>
             {% else %}
             <div class="grid-2">
-                <!-- Gráfico de Top 5 Diagnósticos -->
-                <div class="card">
-                    <h3><i class="fas fa-chart-bar"></i> Top 5 Diagnósticos más Frecuentes</h3>
-                    <div style="height: 300px; margin-top: 16px; position: relative;">
-                        <canvas id="chartDiagnostico"></canvas>
-                    </div>
-                </div>
-                
-
-                <!-- Gráfico de Estado de la Solicitud (Pastel) -->
-                <div class="card">
-                    <h3><i class="fas fa-pie-chart"></i> Estado de la Solicitud</h3>
-                    <div style="height: 300px; margin-top: 16px; position: relative;">
-                        <canvas id="chartEstadoSolicitud"></canvas>
-                    </div>
-                </div>
-            </div>
-
-                <!-- Gráfico de Oportunidad por Procedimiento -->
-                <div class="card">
-                    <h3><i class="fas fa-stethoscope"></i> Oportunidad por Procedimiento</h3>
-                    <div style="height: 300px; margin-top: 16px; position: relative;">
-                        <canvas id="chartOportunidadProcedimiento"></canvas>
-                    </div>
-                </div>
-            {% endif %}
-        </section>
-
-        <!-- Sección de Barreras y Próximas IPS -->
-
-        <section class="section">
+            <!-- Gráfico de Estado de la Solicitud (Pastel) -->
             <div class="card">
-                <h2 style="margin-bottom: 20px;">
-                    <i class="fas fa-chart-line" style="color:#3b82f6;"></i> Barreras
-                </h2>
-                <div class="grid-2">
-                    <!-- Barreras del paciente -->
-                    <div class="card" style="background: #f8fafc;">
-                        <h3 style="margin-bottom: 16px;">
-                            <i class="fas fa-exclamation-triangle" style="color:#f59e0b;"></i> Propios del paciente
-                        </h3>
-                        <ul style="list-style:none; padding:0;">
-                            <li style="display:flex; align-items:center; margin-bottom:14px;">
-                                <i class="fas fa-money-bill-wave" style="color:#13ff02; margin-right:8px;"></i>
-                                <span style="flex:1;"><strong>Económico</strong></span>
-                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">25%</span>
-                            </li>
-                            <li style="display:flex; align-items:center; margin-bottom:14px;">
-                                <i class="fas fa-users" style="color:#13ff02; margin-right:8px;"></i>
-                                <span style="flex:1;"><strong>Sociales</strong></span>
-                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">16%</span>
-                            </li>
-                            <li style="display:flex; align-items:center; margin-bottom:14px;">
-                                <i class="fas fa-home" style="color:#13ff02; margin-right:8px;"></i>
-                                <span style="flex:1;"><strong>Domicilio lejos</strong></span>
-                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">14%</span>
-                            </li>
-                            <li style="display:flex; align-items:center;">
-                                <i class="fas fa-phone-slash" style="color:#13ff02; margin-right:8px;"></i>
-                                <span style="flex:1;"><strong>Difícil comunicación</strong></span>
-                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">7%</span>
-                            </li>
-                        </ul>
-                    </div>
-                    <!-- Barreras de la IPS -->
-                    <div class="card" style="background: #f8fafc;">
-                        <h3 style="margin-bottom: 16px;">
-                            <i class="fas fa-hospital" style="color:#3b82f6;"></i> Propios de la IPS
-                        </h3>
-                        <ul style="list-style:none; padding:0;">
-                            <li style="display:flex; align-items:center; margin-bottom:14px;">
-                                <i class="fas fa-calendar-times" style="color:#13ff02; margin-right:8px;"></i>
-                                <span style="flex:1;"><strong>Sin agendar</strong></span>
-                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">12%</span>
-                            </li>
-                            <li style="display:flex; align-items:center; margin-bottom:14px;">
-                                <i class="fas fa-file-alt" style="color:#13ff02; margin-right:8px;"></i>
-                                <span style="flex:1;"><strong>Demora de reportes</strong></span>
-                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">4%</span>
-                            </li>
-                            <li style="display:flex; align-items:center; margin-bottom:14px;">
-                                <i class="fas fa-user-clock" style="color:#13ff02; margin-right:8px;"></i>
-                                <span style="flex:1;"><strong>No disponibilidad</strong></span>
-                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">8%</span>
-                            </li>
-                            <li style="display:flex; align-items:center;">
-                                <i class="fas fa-pills" style="color:#13ff02; margin-right:8px;"></i>
-                                <span style="flex:1;"><strong>Insumos o medicamentos</strong></span>
-                                <span style="background:#e6ffe6; color:#13ff02; border-radius:6px; padding:2px 10px; font-size:14px;">10%</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>  
+                <h3><i class="fas fa-pie-chart"></i> Estado de la Solicitud</h3>
+                <canvas id="chartEstadoSolicitud"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico de Oportunidad por Procedimiento -->
+        <div class="card">
+            <canvas id="chartOportunidadProcedimiento"></canvas>
+        </div>
+    {% endif %}
+
         </section>
+
         <!-- Tabla de Pacientes -->
         <section class="section">
             <div class="card">
@@ -308,10 +220,10 @@
                                     </span>
                                 </td>
                                 <td style="padding: 12px;">
-                                    {% if f.completed %}
-                                        <span style="background: #dcfce7; color: #16a34a; padding: 4px 8px; border-radius: 4px;">COMPLETADO</span>
+                                    {% if f.estado_solicitud|lower == "realizado" %}
+                                        <span style="background:#dcfce7;color:#16a34a;padding:4px 8px;border-radius:4px;">COMPLETADO</span>
                                     {% else %}
-                                        <span style="background: #fef3c7; color: #d97706; padding: 4px 8px; border-radius: 4px;">PENDIENTE</span>
+                                        <span style="background:#fef3c7;color:#d97706;padding:4px 8px;border-radius:4px;">PENDIENTE</span>
                                     {% endif %}
                                 </td>
                                 <td style="padding: 12px;">{{ f.interruption_reason|default:"-" }}</td>
@@ -348,37 +260,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Datos de oportunidad por procedimiento
         const oportunidadLabels = JSON.parse('{{ oportunidad_procedimiento_labels|default:"[]"|escapejs }}');
         const oportunidadValues = JSON.parse('{{ oportunidad_procedimiento_values|default:"[]"|escapejs }}');
-
-    // ---- Gráfica de Top 5 Diagnósticos (Barras) ----
-    const diagCtx = document.getElementById('chartDiagnostico')?.getContext('2d');
-    if (diagCtx) {
-        new Chart(diagCtx, {
-            type: 'bar',
-            data: {
-                labels: diagLabels,
-                datasets: [{
-                    label: 'Cantidad de Pacientes',
-                    data: diagValues,
-                    backgroundColor: colors,
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    title: { display: false }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { stepSize: 1 }
-                    }
-                }
-            }
-        });
-    }
 
     // ---- Gráfica de Estado de la Solicitud (Pastel) ----
     const estadoCtx = document.getElementById('chartEstadoSolicitud')?.getContext('2d');
@@ -443,6 +324,102 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<!-- Gráficas Adicionales -->
+<div class="card">
+    <h3>Barreras</h3>
+    <canvas id="chartBarreras" style="height:260px;"></canvas>
+</div>
+<div class="card">
+    <h3>Estados de Solicitud</h3>
+    <canvas id="chartEstados" style="height:260px;"></canvas>
+</div>
+<div class="card" style="margin-top:20px;">
+    <h3>Oportunidad por procedimiento</h3>
+    <canvas id="chartOportunidad" style="height:260px;"></canvas>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    /* ============================================================
+       BARRERAS (Pie)
+    ============================================================ */
+    const barrerasLabels = JSON.parse('{{ barreras_labels|safe }}');
+    const barrerasValues = JSON.parse('{{ barreras_values|safe }}');
+
+    const barrerasCtx = document.getElementById("chartBarreras");
+    if (barrerasCtx) {
+        new Chart(barrerasCtx, {
+            type: 'pie',
+            data: {
+                labels: barrerasLabels,
+                datasets: [{
+                    data: barrerasValues,
+                    backgroundColor: ['#3b82f6','#f59e0b','#10b981','#ef4444','#8b5cf6','#14b8a6'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    /* ============================================================
+       ESTADOS DE SOLICITUD (Bar)
+    ============================================================ */
+    const estadosLabels = JSON.parse('{{ estados_labels|safe }}');
+    const estadosValues = JSON.parse('{{ estados_values|safe }}');
+
+    const estadosCtx = document.getElementById("chartEstados");
+    if (estadosCtx) {
+        new Chart(estadosCtx, {
+            type: 'bar',
+            data: {
+                labels: estadosLabels,
+                datasets: [{
+                    label: 'Cantidad',
+                    data: estadosValues,
+                    backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    /* ============================================================
+       OPORTUNIDAD POR PROCEDIMIENTO (Bar)
+    ============================================================ */
+    const oportunidadLabels = JSON.parse('{{ oportunidad_labels|safe }}');
+    const oportunidadValues = JSON.parse('{{ oportunidad_values|safe }}');
+
+    const oportunidadCtx = document.getElementById("chartOportunidad");
+    if (oportunidadCtx) {
+        new Chart(oportunidadCtx, {
+            type: 'bar',
+            data: {
+                labels: oportunidadLabels,
+                datasets: [{
+                    label: 'Promedio días',
+                    data: oportunidadValues,
+                    backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'],
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+});
+</script>
 </body>
 </html>
 {% endblock %}
