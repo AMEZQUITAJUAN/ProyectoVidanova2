@@ -2,6 +2,11 @@ import os
 import unicodedata
 import pandas as pd
 from django.conf import settings
+from django.db.models import Count
+from patients.models import Patient
+from treatments.models import Treatment
+from .models import FollowUp
+
 
 def normalize_columns(cols):
     def clean(c):
@@ -96,101 +101,49 @@ def compute_institutional_metrics(df: pd.DataFrame):
 
     return out
 
-def compute_request_status_from_db():
-    """
-    Calcula el estado de solicitud usando SOLO los campos reales del modelo FollowUp.
-    """
-    from .models import FollowUp
+def compute_request_status_from_db(queryset=None):
+    if queryset is None:
+        queryset = FollowUp.objects.all()
 
-    realizados = FollowUp.objects.filter(estado_solicitud__icontains='realizado').count()
-    agendados = FollowUp.objects.filter(estado_solicitud__icontains='agendado').count()
-    en_gestion = FollowUp.objects.filter(estado_solicitud__icontains='gestion').count()
-    por_gestionar = FollowUp.objects.filter(estado_solicitud__icontains='por gestionar').count()
+    ESTADOS_REALIZADO = ["realizado", "completado"]
+    ESTADOS_AGENDADO = ["agendado", "en programación", "sin agenda", "programado"]
+    ESTADOS_PENDIENTE = ["pendiente", "por gestionar", "en gestión", "pendiente reporte", "por agendar"]
+    ESTADOS_EXCLUIR = ["fallecido", "no acepta", "diferido", "control mayor 3 meses", "rechazado"]
 
-    pendientes = FollowUp.objects.exclude(
-        estado_solicitud__icontains='realizado'
-    ).exclude(
-        estado_solicitud__icontains='agendado'
-    ).exclude(
-        estado_solicitud__icontains='gestion'
-    ).exclude(
-        estado_solicitud__icontains='por gestionar'
-    ).count()
+    def contiene(texto, palabras):
+        if not texto:
+            return False
+        return any(p in str(texto).lower() for p in palabras)
+
+    validos = [f for f in queryset if not contiene(f.estado_solicitud, ESTADOS_EXCLUIR)]
+    total = len(validos) or 1
+
+    completados = sum(1 for f in validos if contiene(f.estado_solicitud, ESTADOS_REALIZADO))
+    agendados = sum(1 for f in validos if contiene(f.estado_solicitud, ESTADOS_AGENDADO))
+    pendientes = total - completados - agendados
+
+    porcentaje = round((completados / total) * 100, 1)
 
     return {
-        "labels": ["Realizados", "Agendados", "Pendientes", "En Gestión", "Por Gestionar"],
-        "values": [
-            int(realizados),
-            int(agendados),
-            int(pendientes),
-            int(en_gestion),
-            int(por_gestionar)
-        ]
+        "labels": ["Realizado", "Agendado", "Pendiente"],
+        "values": [completados, agendados, pendientes],
+        "completados": completados,
+        "pendientes": pendientes + agendados,
+        "porcentaje_completado": porcentaje,
     }
 
-def compute_opportunity_by_procedure():
-    """
-    Calcula la "Oportunidad por procedimiento" desde la BD (Treatment).
-    Retorna diccionario con etiquetas (tipos de procedimiento) y valores (conteos).
+def compute_opportunity_by_procedure(queryset=None):
+    if queryset is None:
+        queryset = FollowUp.objects.all()
 
-    Procedimientos esperados:
-    - Oncología
-    - Cirugía
-    - Radioterapia
-    - Quimioterapia
-    - Consulta
-    - Laboratorio
-    - Patología
-    - Procedimiento
-    - CUPS (código)
-    """
-    from treatments.models import Treatment
-    from patients.models import Patient
+    data = queryset.values('tipo_procedimiento')\
+        .annotate(total=Count('id'))\
+        .order_by('-total')[:10]
 
-    # Etiquetas que queremos mostrar
-    labels = ['Oncología', 'Cirugía', 'Radioterapia', 'Quimioterapia', 'Consulta', 'Laboratorio', 'Patología', 'Procedimiento', 'CUPS']
-    counts = {k: 0 for k in labels}
-
-    # Contar desde Treatment (tipos conocidos)
-    try:
-        counts['Quimioterapia'] = int(Treatment.objects.filter(tipo__iexact='QMT').count())
-        counts['Radioterapia'] = int(Treatment.objects.filter(tipo__iexact='RX').count())
-        counts['Cirugía'] = int(Treatment.objects.filter(tipo__iexact='CIR').count())
-    except Exception:
-        # Si hay problemas con el ORM, dejamos valores en 0
-        pass
-
-    # Contar pacientes con tipo_cancer que contenga 'onc' -> Oncología aproximada
-    try:
-        counts['Oncología'] = int(Patient.objects.filter(tipo_cancer__icontains='onc').count())
-    except Exception:
-        pass
-
-    # Intentar enriquecer desde el CSV procesado para consultas, laboratorio, patología, procedimiento y CUPS
-    csv_path = os.path.join(settings.MEDIA_ROOT, 'uploads', 'processed_latest.csv')
-    if os.path.exists(csv_path):
-        try:
-            df = pd.read_csv(csv_path)
-            df.columns = normalize_columns(df.columns)
-
-            # columnas candidatas donde puede aparecer el procedimiento o servicio
-            candidate_cols = [c for c in df.columns if any(x in c for x in ('proced', 'servic', 'cups', 'servicio', 'procedimiento'))]
-            # Para cada label, sumar filas cuyo valor contenga la palabra (heurística)
-            for label in ['Consulta', 'Laboratorio', 'Patología', 'Procedimiento', 'CUPS']:
-                total = 0
-                low = label.lower()
-                for col in candidate_cols:
-                    try:
-                        vals = df[col].astype(str).str.lower()
-                        total += int(vals.str.contains(low, na=False).sum())
-                    except Exception:
-                        continue
-                counts[label] = total
-        except Exception:
-            # Si lectura falla, seguimos con los datos que tenemos
-            pass
+    labels = [item['tipo_procedimiento'] or 'Sin procedimiento' for item in data]
+    values = [item['total'] for item in data]
 
     return {
         "procedimiento_labels": labels,
-        "procedimiento_values": [int(counts[l]) for l in labels]
+        "values": values,
     }

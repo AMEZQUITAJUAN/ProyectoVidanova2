@@ -114,7 +114,6 @@
                     <button class="btn" title="Buscar"><i class="bx bx-search"></i></button>
                 </section>
             </div>
-            
         </section>
 
         <!-- KPI Grid -->
@@ -153,271 +152,165 @@
     </div>
 </section>
 
-
-        <!-- Gráficas -->
-        <section class="section">
-            {% if error %}
-            <div class="alert warning" style="text-align: center; padding: 20px;">
-                <i class="fas fa-exclamation-triangle"></i> {{ error }}
-            </div>
-            {% else %}
-            <div class="grid-2">
-            <!-- Gráfico de Estado de la Solicitud (Pastel) -->
-            <div class="card">
-                <h3><i class="fas fa-pie-chart"></i> Estado de la Solicitud</h3>
-                <canvas id="chartEstadoSolicitud"></canvas>
-            </div>
-        </div>
-
-        <!-- Gráfico de Oportunidad por Procedimiento -->
-        <div class="card">
-            <canvas id="chartOportunidadProcedimiento"></canvas>
-        </div>
-    {% endif %}
-
-        </section>
-
-        <!-- Tabla de Pacientes -->
-        <section class="section">
-            <div class="card">
-                <h2><i class="fas fa-users"></i> Detalle por Pacientes</h2>
-                <div style="overflow-x: auto; margin-top: 16px;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: #f8fafc; border-bottom: 2px solid #e5e7eb;">
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">Paciente</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">Tipo de Procedimiento</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">Estado</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">Barreras</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">Fecha</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">Acciones</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">CUPS</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">Servicio Solicitado</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">Estado</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">Fecha Solicitud</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">Fecha Cita</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600;">Días</th>
-                                
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for f in registros %}
-                            <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <td style="padding: 12px;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <div style="width: 32px; height: 32px; background: #3b82f6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">
-                                            {{ f.patient.nombre|slice:":2"|upper }}
-                                        </div>
-                                        <div>
-                                            <div style="font-weight: 600;">{{ f.patient.nombre }}</div>
-                                            <div style="font-size: 12px; color: #6b7280;">ID: {{ f.patient.id }}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td style="padding: 12px;">
-                                    <span style="background: #dbeafe; color: #1d4ed8; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
-                                        {{ f.treatment.tipo }}
-                                    </span>
-                                </td>
-                                <td style="padding: 12px;">
-                                    {% if f.estado_solicitud|lower == "realizado" %}
-                                        <span style="background:#dcfce7;color:#16a34a;padding:4px 8px;border-radius:4px;">COMPLETADO</span>
-                                    {% else %}
-                                        <span style="background:#fef3c7;color:#d97706;padding:4px 8px;border-radius:4px;">PENDIENTE</span>
-                                    {% endif %}
-                                </td>
-                                <td style="padding: 12px;">{{ f.interruption_reason|default:"-" }}</td>
-                                <td style="padding: 12px;">{{ f.session_date }}</td>
-                                <td style="padding: 12px;">
-                                    <a href="{% url 'followup_detail' f.patient.id %}" class="btn" style="background: #3b82f6; color: white;">Ver</a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="6" style="text-align:center;">No hay registros disponibles.</td></tr>
-                            {% endfor %}
-                            </tbody>
-
-                    </table>
-                </div>
-            </div>
-        </section>
+<!-- ====== 3 GRÁFICAS – DESPUÉS DE LOS CARDS Y ANTES DE LA TABLA ====== -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 28px; margin: 50px 0 30px 0;">
+    
+    <!-- 1. Estado de la Solicitud -->
+    <div class="card" style="padding: 20px;">
+        <h3 style="text-align:center; margin-bottom: 20px; color:#1e40af; font-size:1.3em;">Estado de la Solicitud</h3>
+        <canvas id="chartEstado"></canvas>
     </div>
 
-    <!-- 📊 SCRIPT DE GRÁFICAS -->
+    <!-- 2. Barreras más Frecuentes -->
+    <div class="card" style="padding: 20px;">
+        <h3 style="text-align:center; margin-bottom: 20px; color:#dc2626; font-size:1.3em;">Barreras más Frecuentes</h3>
+        <canvas id="chartBarreras"></canvas>
+    </div>
+
+    <!-- 3. Procedimientos más Solicitados -->
+    <div class="card" style="padding: 20px;">
+        <h3 style="text-align:center; margin-bottom: 20px; color:#2563eb; font-size:1.3em;">Procedimientos más Solicitados</h3>
+        <canvas id="chartProcedimientos"></canvas>
+    </div>
+</div>
+
+<!-- ====== TABLA DE SEGUIMIENTO ====== -->  
+<div class="card shadow-sm mt-4 p-3">  
+    <h3 class="mb-3">Detalle por Pacientes</h3>  
+    <table class="table table-hover align-middle">  
+        <thead class="table-light">  
+            <tr>  
+                <th>Paciente</th>  
+                <th>Procedimiento</th>  
+                <th>CUPS</th>  
+                <th>Servicio</th>  
+                <th>Estado</th>  
+                <th>Barrera</th>  
+                <th>Solicitud</th>  
+                <th>Cita</th>  
+                <th>Días</th>  
+                <th>Acciones</th>  
+            </tr>  
+        </thead>  
+        <tbody>  
+            {% for r in page_obj %} 
+            <tr class="patient-row">  
+                <td>{{ r.patient.nombre|default:"Paciente anónimo" }} (ID: {{ r.patient.id }})</td>  
+                <td><span class="badge badge-proc">{{ r.tipo_procedimiento|upper|default:"-" }}</span></td>  
+                <td>{{ r.cups|default:"-" }}</td>  
+                <td style="width: 260px;">{{ r.servicio|default:r.observaciones|default:"Sin descripción" }}</td>  
+                <td>  
+                    {% if "realiz" in r.estado_solicitud|lower %}  
+                        <span class="estado realizado">REALIZADO</span>  
+                    {% elif "agend" in r.estado_solicitud|lower %}  
+                        <span class="estado agendado">AGENDADO</span>  
+                    {% elif "pend" in r.estado_solicitud|lower %}  
+                        <span class="estado pendiente">PENDIENTE</span>  
+                    {% else %}  
+                        <span class="estado otro">{{ r.estado_solicitud|upper|default:"Sin estado" }}</span>  
+                    {% endif %}  
+                </td>  
+                <td>{{ r.barrera|default:"Sin barrera" }}</td>  
+                <td>{{ r.fecha_solicitud_cita|date:"d/m/Y"|default:"-" }}</td>  
+                <td>{{ r.fecha_cita|date:"d/m/Y"|default:"-" }}</td>  
+                <td>{{ r.dias_diff|default:"-" }}</td>  
+                <td>  
+                    <a href="{% url 'followup_detail' r.patient.id %}" class="btn btn-sm btn-primary">Ver</a>  
+                </td>  
+            </tr>  
+            {% empty %}  
+            <tr>  
+                <td colspan="10" class="text-center">No hay registros disponibles con estos filtros.</td>  
+            </tr>  
+            {% endfor %}  
+        </tbody>  
+    </table>  
+</div>  
+
+<!-- Paginación al Final -->
+{% if page_obj.has_other_pages %}
+<div class="card" style="margin-top: 20px; text-align: center;">
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" class="btn primary">Anterior</a>
+        {% endif %}
+        
+        <span style="margin: 0 15px; font-weight: bold;">
+            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} 
+            (Total: {{ page_obj.paginator.count }} registros)
+        </span>
+        
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" class="btn primary">Siguiente</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- SCRIPT DE GRÁFICAS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Datos de diagnósticos
-    const diagLabels = JSON.parse('{{ top_diagnosticos_labels|default:"[]"|escapejs }}');
-    const diagValues = JSON.parse('{{ top_diagnosticos_values|default:"[]"|escapejs }}');
 
-    // Datos de estado de solicitud
-    const estadoLabels = JSON.parse('{{ estado_solicitud_labels|default:"[]"|escapejs }}');
-    const estadoValues = JSON.parse('{{ estado_solicitud_values|default:"[]"|escapejs }}');
-
-    // Colores para las gráficas
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-
-        // Datos de oportunidad por procedimiento
-        const oportunidadLabels = JSON.parse('{{ oportunidad_procedimiento_labels|default:"[]"|escapejs }}');
-        const oportunidadValues = JSON.parse('{{ oportunidad_procedimiento_values|default:"[]"|escapejs }}');
-
-    // ---- Gráfica de Estado de la Solicitud (Pastel) ----
-    const estadoCtx = document.getElementById('chartEstadoSolicitud')?.getContext('2d');
-    if (estadoCtx) {
-        new Chart(estadoCtx, {
-            type: 'pie',
-            data: {
-                labels: estadoLabels,
-                datasets: [{
-                    data: estadoValues,
-                    backgroundColor: colors,
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 20
-                        }
-                    }
-                }
+    // === 1. Estado de la Solicitud ===
+    new Chart(document.getElementById('chartEstado'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ estado_procedimiento_labels|default:"[]"|safe }},
+            datasets: [{
+                data: {{ estado_procedimiento_values|default:"[]"|safe }},
+                backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
+                borderColor: '#fff',
+                borderWidth: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } }
             }
-        });
-    }
-
-        // ---- Gráfica de Oportunidad por Procedimiento (Barras) ----
-        const oportunidadCtx = document.getElementById('chartOportunidadProcedimiento')?.getContext('2d');
-        if (oportunidadCtx) {
-            new Chart(oportunidadCtx, {
-                type: 'bar',
-                data: {
-                    labels: oportunidadLabels,
-                    datasets: [{
-                        label: 'Cantidad de Procedimientos',
-                        data: oportunidadValues,
-                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: true },
-                        title: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1 }
-                        }
-                    }
-                }
-            });
         }
-});
-</script>
+    });
 
-<!-- Gráficas Adicionales -->
-<div class="card">
-    <h3>Barreras</h3>
-    <canvas id="chartBarreras" style="height:260px;"></canvas>
-</div>
-<div class="card">
-    <h3>Estados de Solicitud</h3>
-    <canvas id="chartEstados" style="height:260px;"></canvas>
-</div>
-<div class="card" style="margin-top:20px;">
-    <h3>Oportunidad por procedimiento</h3>
-    <canvas id="chartOportunidad" style="height:260px;"></canvas>
-</div>
+    // === 2. Barreras más frecuentes ===
+    new Chart(document.getElementById('chartBarreras'), {
+        type: 'bar',
+        data: {
+            labels: {{ barreras_labels|default:"[]"|safe }},
+            datasets: [{
+                label: 'Cantidad',
+                data: {{ barreras_values|default:"[]"|safe }},
+                backgroundColor: '#ef4444',
+                borderRadius: 8,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: { stepSize: 1 } } }
+        }
+    });
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-
-    /* ============================================================
-       BARRERAS (Pie)
-    ============================================================ */
-    const barrerasLabels = JSON.parse('{{ barreras_labels|safe }}');
-    const barrerasValues = JSON.parse('{{ barreras_values|safe }}');
-
-    const barrerasCtx = document.getElementById("chartBarreras");
-    if (barrerasCtx) {
-        new Chart(barrerasCtx, {
-            type: 'pie',
-            data: {
-                labels: barrerasLabels,
-                datasets: [{
-                    data: barrerasValues,
-                    backgroundColor: ['#3b82f6','#f59e0b','#10b981','#ef4444','#8b5cf6','#14b8a6'],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                plugins: {
-                    legend: { position: 'bottom' }
-                }
-            }
-        });
-    }
-
-    /* ============================================================
-       ESTADOS DE SOLICITUD (Bar)
-    ============================================================ */
-    const estadosLabels = JSON.parse('{{ estados_labels|safe }}');
-    const estadosValues = JSON.parse('{{ estados_values|safe }}');
-
-    const estadosCtx = document.getElementById("chartEstados");
-    if (estadosCtx) {
-        new Chart(estadosCtx, {
-            type: 'bar',
-            data: {
-                labels: estadosLabels,
-                datasets: [{
-                    label: 'Cantidad',
-                    data: estadosValues,
-                    backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444'],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-    }
-
-    /* ============================================================
-       OPORTUNIDAD POR PROCEDIMIENTO (Bar)
-    ============================================================ */
-    const oportunidadLabels = JSON.parse('{{ oportunidad_labels|safe }}');
-    const oportunidadValues = JSON.parse('{{ oportunidad_values|safe }}');
-
-    const oportunidadCtx = document.getElementById("chartOportunidad");
-    if (oportunidadCtx) {
-        new Chart(oportunidadCtx, {
-            type: 'bar',
-            data: {
-                labels: oportunidadLabels,
-                datasets: [{
-                    label: 'Promedio días',
-                    data: oportunidadValues,
-                    backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'],
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-    }
-
+    // === 3. Procedimientos más solicitados ===
+    new Chart(document.getElementById('chartProcedimientos'), {
+        type: 'bar',
+        data: {
+            labels: {{ oportunidad_procedimiento_labels|default:"[]"|safe }},
+            datasets: [{
+                label: 'Cantidad',
+                data: {{ oportunidad_procedimiento_values|default:"[]"|safe }},
+                backgroundColor: '#3b82f6',
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
 });
 </script>
 </body>
