@@ -1,12 +1,13 @@
 import os
 import unicodedata
 import pandas as pd
+import numpy as np
+from django.db import transaction
 from django.conf import settings
-from django.db.models import Count
+from django.db.models import Count, Q
 from patients.models import Patient
 from treatments.models import Treatment
-from .models import FollowUp
-
+from .models import FollowUp  # Importamos el modelo, NO lo definimos aquí
 
 def normalize_columns(cols):
     def clean(c):
@@ -39,10 +40,8 @@ def load_dashboard_dataframe():
     return df, csv_path
 
 def compute_institutional_metrics(df: pd.DataFrame):
-    # Maneja ausencias de columnas con defaults seguros
     out = {}
-
-    # Grupo diagnóstico (top 10)
+    # Grupo diagnóstico
     if "grupo_diagnostico" in df.columns:
         diag_data = df["grupo_diagnostico"].value_counts().head(10)
         out["diag_labels"] = diag_data.index.tolist()
@@ -70,7 +69,7 @@ def compute_institutional_metrics(df: pd.DataFrame):
     else:
         out["age_labels"], out["age_values"] = [], []
 
-    # Estado solicitud
+    # Estado solicitud (CSV)
     for col in ("estado_de_solicitud", "estado_de__solicitud"):
         if col in df.columns:
             s = df[col].value_counts()
@@ -80,48 +79,43 @@ def compute_institutional_metrics(df: pd.DataFrame):
     else:
         out["state_labels"], out["state_values"] = [], []
 
-    # Oportunidad (promedio)
+    # Oportunidad
     if "oportunidad" in df.columns:
         df["oportunidad_num"] = pd.to_numeric(df["oportunidad"], errors="coerce")
         out["oportunidad_promedio"] = round(df["oportunidad_num"].mean(skipna=True), 2)
     else:
         out["oportunidad_promedio"] = None
 
-    # Mes de ordenamiento
-    if "mes_de_ordenamiento" in df.columns:
-        month_data = df["mes_de_ordenamiento"].value_counts()
-        out["month_labels"] = month_data.index.tolist()
-        out["month_values"] = [int(v) for v in month_data.values.tolist()]
-    else:
-        out["month_labels"], out["month_values"] = [], []
-
-    # Puedes reutilizar month_* para otras gráficas simples
-    out["cnt_labels"] = out["month_labels"]
-    out["cnt_values"] = out["month_values"]
-
     return out
 
 def compute_request_status_from_db(queryset=None):
+    """
+    Calcula los contadores de estado basándose en los Choices del modelo.
+    """
     if queryset is None:
         queryset = FollowUp.objects.all()
 
-    ESTADOS_REALIZADO = ["realizado", "completado"]
-    ESTADOS_AGENDADO = ["agendado", "en programación", "sin agenda", "programado"]
-    ESTADOS_PENDIENTE = ["pendiente", "por gestionar", "en gestión", "pendiente reporte", "por agendar"]
-    ESTADOS_EXCLUIR = ["fallecido", "no acepta", "diferido", "control mayor 3 meses", "rechazado"]
+    ESTADOS_REALIZADO = ['REALIZADO']
+    ESTADOS_AGENDADO = ['AGENDADO']
+    ESTADOS_PENDIENTE = ['PENDIENTE', 'EN_GESTION', 'POR_GESTIONAR', 'NO_AUTORIZADO']
+    ESTADOS_CANCELADO = ['CANCELADO']
 
-    def contiene(texto, palabras):
-        if not texto:
-            return False
-        return any(p in str(texto).lower() for p in palabras)
+    active_qs = queryset.exclude(estado_solicitud__in=ESTADOS_CANCELADO)
+    total = active_qs.count()
 
-    validos = [f for f in queryset if not contiene(f.estado_solicitud, ESTADOS_EXCLUIR)]
-    total = len(validos) or 1
+    if total == 0:
+        return {
+            "labels": ["Realizado", "Agendado", "Pendiente"],
+            "values": [0, 0, 0],
+            "completados": 0,
+            "pendientes": 0,
+            "porcentaje_completado": 0,
+        }
 
-    completados = sum(1 for f in validos if contiene(f.estado_solicitud, ESTADOS_REALIZADO))
-    agendados = sum(1 for f in validos if contiene(f.estado_solicitud, ESTADOS_AGENDADO))
-    pendientes = total - completados - agendados
-
+    completados = active_qs.filter(estado_solicitud__in=ESTADOS_REALIZADO).count()
+    agendados = active_qs.filter(estado_solicitud__in=ESTADOS_AGENDADO).count()
+    pendientes = active_qs.filter(estado_solicitud__in=ESTADOS_PENDIENTE).count()
+    
     porcentaje = round((completados / total) * 100, 1)
 
     return {
@@ -133,6 +127,9 @@ def compute_request_status_from_db(queryset=None):
     }
 
 def compute_opportunity_by_procedure(queryset=None):
+    """
+    Cuenta cuántas solicitudes hay por tipo de procedimiento.
+    """
     if queryset is None:
         queryset = FollowUp.objects.all()
 
@@ -140,10 +137,164 @@ def compute_opportunity_by_procedure(queryset=None):
         .annotate(total=Count('id'))\
         .order_by('-total')[:10]
 
-    labels = [item['tipo_procedimiento'] or 'Sin procedimiento' for item in data]
+    labels = [item['tipo_procedimiento'] for item in data]
     values = [item['total'] for item in data]
 
     return {
         "procedimiento_labels": labels,
+        "values": values,
+    }
+def importar_archivo_masivo(file_path):
+    """
+    Lee Excel/CSV, normaliza columnas, busca pacientes y crea registros masivamente.
+    """
+    # 1. Leer archivo (detecta si es Excel o CSV)
+    if file_path.endswith('.csv'):
+        df = pd.read_csv(file_path)
+    else:
+        df = pd.read_excel(file_path)
+
+    # 2. DICCIONARIO DE SINÓNIMOS (El cerebro de la interpretación)
+    # Mapea posibles nombres incorrectos al nombre real de tu BD
+    column_mapping = {
+        # Nombre en BD : [Lista de posibles nombres en el Excel]
+        'documento': ['cedula', 'id', 'identificacion', 'doc_identidad', 'documento'],
+        'nombre': ['paciente', 'nombre_completo', 'nombres', 'usuario'],
+        'fecha_solicitud_cita': ['fecha_solicitud', 'f_solicitud', 'fecha_orden', 'fecha_recepcion'],
+        'tipo_procedimiento': ['procedimiento', 'tipo_servicio', 'servicio_solicitado'],
+        'estado_solicitud': ['estado', 'status', 'estado_actual'],
+        'fecha_cita': ['fecha_asignada', 'f_cita', 'fecha_agenda'],
+        'observaciones': ['obs', 'comentario', 'nota']
+    }
+
+    # Normalizar columnas del DataFrame
+    df.columns = [c.lower().strip() for c in df.columns] # Todo a minúsculas
+    
+    # Renombrar columnas según el mapa
+    rename_dict = {}
+    for real_col, aliases in column_mapping.items():
+        for alias in aliases:
+            if alias in df.columns:
+                rename_dict[alias] = real_col
+                break # Encontró una coincidencia
+    
+    df.rename(columns=rename_dict, inplace=True)
+
+    # 3. Validaciones Mínimas
+    if 'documento' not in df.columns:
+        return {"error": "No se encontró columna de Documento/Cédula"}
+
+    # 4. Preparar Datos para Inserción Masiva (Bulk Create)
+    followups_to_create = []
+    
+    # Cachear pacientes existentes para no consultar DB mil veces
+    # Traemos todos los documentos y sus IDs en un diccionario {doc: id}
+    existing_patients = dict(Patient.objects.values_list('documento', 'id'))
+    patients_to_create = []
+
+    # Primera pasada: Identificar pacientes nuevos
+    # (Pandas es 100 veces más rápido que un for de Python)
+    unique_docs = df['documento'].unique()
+    for doc in unique_docs:
+        doc_str = str(doc).strip()
+        if doc_str not in existing_patients:
+            # Si no existe, lo preparamos para crear
+            # Intenta buscar el nombre en la fila correspondiente
+            row = df[df['documento'] == doc].iloc[0]
+            nombre_paciente = row.get('nombre', 'Paciente Nuevo Importado')
+            patients_to_create.append(Patient(documento=doc_str, nombre=nombre_paciente))
+
+    # Crear pacientes nuevos en bloque
+    if patients_to_create:
+        Patient.objects.bulk_create(patients_to_create)
+        # Actualizar caché
+        existing_patients = dict(Patient.objects.values_list('documento', 'id'))
+# ... (esto va después de crear los pacientes)
+    # 4.5 PREVENIR DUPLICADOS (La clave anti-lag)
+    # Creamos una "huella digital" de lo que ya existe en BD para no repetirlo.
+    # Clave única: ID Paciente + Fecha Solicitud + Tipo Procedimiento
+    existing_signatures = set(
+        FollowUp.objects.values_list('patient_id', 'fecha_solicitud_cita', 'tipo_procedimiento')
+    )
+
+    # Segunda pasada: Crear los Seguimientos
+    for index, row in df.iterrows():
+        doc_str = str(row['documento']).strip()
+        patient_id = existing_patients.get(doc_str)
+
+        if not patient_id:
+            continue 
+
+        # Limpieza y Mapeo (Igual que antes)
+        estado_raw = str(row.get('estado_solicitud', 'PENDIENTE')).upper()
+        # ... (toda tu lógica de mapeo de ESTADOS aquí) ...
+        estado_final = 'PENDIENTE'
+        if 'REALIZ' in estado_raw: estado_final = 'REALIZADO'
+        elif 'AGEN' in estado_raw: estado_final = 'AGENDADO'
+        elif 'GEST' in estado_raw: estado_final = 'EN_GESTION'
+        elif 'CANCEL' in estado_raw: estado_final = 'CANCELADO'
+
+        # ... (toda tu lógica de mapeo de PROCEDIMIENTOS aquí) ...
+        proc_raw = str(row.get('tipo_procedimiento', 'CONSULTA')).upper()
+        proc_final = 'CONSULTA'
+        if 'CIRU' in proc_raw: proc_final = 'CIRUGIA'
+        elif 'QUIM' in proc_raw: proc_final = 'QUIMIOTERAPIA'
+        elif 'RADIO' in proc_raw: proc_final = 'RADIOTERAPIA'
+        elif 'IMAG' in proc_raw: proc_final = 'IMAGENES'
+        elif 'LAB' in proc_raw: proc_final = 'LABORATORIO'
+        elif 'PATO' in proc_raw: proc_final = 'PATOLOGIA'
+
+        # Fechas
+        f_sol = pd.to_datetime(row.get('fecha_solicitud_cita'), errors='coerce')
+        f_cita = pd.to_datetime(row.get('fecha_cita'), errors='coerce')
+        
+        date_sol_obj = f_sol.date() if not pd.isnull(f_sol) else None
+        date_cita_obj = f_cita.date() if not pd.isnull(f_cita) else None
+
+        # --- EL FILTRO MÁGICO ---
+        # Si esta combinación ya existe, SALTAMOS (continue). No creamos basura.
+        signature = (patient_id, date_sol_obj, proc_final)
+        if signature in existing_signatures:
+            continue
+            
+        # Si es nuevo, lo agregamos a la lista y actualizamos la firma para no repetirlo en este mismo archivo
+        existing_signatures.add(signature)
+
+        followups_to_create.append(FollowUp(
+            patient_id=patient_id,
+            tipo_procedimiento=proc_final,
+            estado_solicitud=estado_final,
+            fecha_solicitud_cita=date_sol_obj,
+            fecha_cita=date_cita_obj,
+            observaciones=row.get('observaciones', '')
+        ))
+
+    # 5. Insertar (Solo lo nuevo)
+    if followups_to_create:
+        with transaction.atomic():
+            FollowUp.objects.bulk_create(followups_to_create, batch_size=2000)
+        return {"success": True, "registros": len(followups_to_create), "mensaje": "Carga exitosa"}
+    else:
+        return {"success": True, "registros": 0, "mensaje": "No se encontraron registros nuevos (todo estaba duplicado)"}
+def compute_barriers(queryset=None):
+    """
+    Calcula el top de barreras más frecuentes.
+    Excluye 'NINGUNA' para mostrar solo problemas reales.
+    """
+    if queryset is None:
+        queryset = FollowUp.objects.all()
+
+    # Filtramos 'NINGUNA' y 'None' para ver solo obstáculos reales
+    # Agrupamos por el campo 'barrera' y contamos
+    data = queryset.exclude(Q(barrera='NINGUNA') | Q(barrera__isnull=True) | Q(barrera='')) \
+                   .values('barrera') \
+                   .annotate(total=Count('id')) \
+                   .order_by('-total')[:5] # Top 5 barreras
+
+    labels = [item['barrera'] for item in data]
+    values = [item['total'] for item in data]
+
+    return {
+        "labels": labels,
         "values": values,
     }

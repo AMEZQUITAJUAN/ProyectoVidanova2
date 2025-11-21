@@ -1,201 +1,147 @@
 # followups/views.py
 import os
-import json
-import pandas as pd
-import unicodedata
-from django.db.models import Count, Avg, Max, F, ExpressionWrapper, IntegerField
-from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.decorators.http import require_http_methods
-from django.http import HttpResponse
 from django.core.files.storage import FileSystemStorage
+from django.core.paginator import Paginator
+from django.contrib import messages
+from django.db.models import Q
+from django.conf import settings
 
 from .models import FollowUp
-from patients.models import Patient
-from treatments.models import Treatment
+from .forms import FollowUpForm, UploadFileForm
 from .services import (
-    load_dashboard_dataframe,
-    compute_institutional_metrics,
-    compute_request_status_from_db,
-    compute_opportunity_by_procedure
+    importar_archivo_masivo, 
+    compute_request_status_from_db, 
+    compute_opportunity_by_procedure,
+    compute_barriers
 )
 
+def followup_dashboard(request):
+    # 1. Queryset Base (Optimizado)
+    queryset = FollowUp.objects.select_related('patient').all().order_by('-fecha_solicitud_cita')
 
-# =============================================
-# DASHBOARD PRINCIPAL - LIMPIO Y ESCALABLE
-# =============================================
-def followups(request):
-    # Base queryset optimizado
-    registros = FollowUp.objects.select_related('patient').order_by('-fecha_atencion')
-
-    # === FILTROS ===
+    # 2. Filtros
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     status = request.GET.get('status')
     procedure = request.GET.get('procedure')
+    q_search = request.GET.get('q')
 
-    if date_from:
-        registros = registros.filter(fecha_atencion__gte=date_from)
-    if date_to:
-        registros = registros.filter(fecha_atencion__lte=date_to)
-    if status:
-        registros = registros.filter(estado_solicitud__icontains=status.lower())
-    if procedure:
-        registros = registros.filter(tipo_procedimiento__icontains=procedure)
-
-    # === Cálculo de días entre solicitud y cita (Django puro, sin bucles) ===
-    registros = registros.annotate(
-        dias_diff=ExpressionWrapper(
-            F('fecha_cita') - F('fecha_solicitud_cita'),
-            output_field=IntegerField()
+    if date_from: queryset = queryset.filter(fecha_solicitud_cita__gte=date_from)
+    if date_to: queryset = queryset.filter(fecha_solicitud_cita__lte=date_to)
+    if status: queryset = queryset.filter(estado_solicitud=status)
+    if procedure: queryset = queryset.filter(tipo_procedimiento=procedure)
+    if q_search:
+        queryset = queryset.filter(
+            Q(patient__nombre__icontains=q_search) | 
+            Q(patient__documento__icontains=q_search)
         )
-    )
 
-    # === KPIs principales ===
-    total = registros.count()
-    completados = registros.filter(estado_solicitud__icontains='realizado').count()
-    porcentaje_completado = round((completados / total) * 100, 1) if total else 0
-    promedio_dias = registros.filter(dias_diff__gte=0).aggregate(Avg('dias_diff'))['dias_diff__avg']
-    promedio_dias = round(promedio_dias, 1) if promedio_dias else None
+    # 3. KPIs (Calculados sobre los datos filtrados)
+    kpi_status = compute_request_status_from_db(queryset)
+    kpi_procedure = compute_opportunity_by_procedure(queryset)
+    kpi_barriers = compute_barriers(queryset)
 
-    # === Barreras top 10 ===
-    barreras_raw = registros.values('barrera').annotate(total=Count('id')).order_by('-total')[:10]
-    barreras_labels = [b['barrera'] or 'Sin barrera' for b in barreras_raw]
-    barreras_values = [b['total'] for b in barreras_raw]
+    # Stats rápidas
+    realizados = queryset.filter(estado_solicitud='REALIZADO').exclude(fecha_cita__isnull=True, fecha_solicitud_cita__isnull=True)
+    dias_list = [r.dias_diff for r in realizados if r.dias_diff is not None]
+    promedio = round(sum(dias_list) / len(dias_list), 1) if dias_list else 0
 
-    # === Estados y oportunidad (usando services con filtros aplicados) ===
-    estado_mapeo = compute_request_status_from_db(registros)
-    oportunidad = compute_opportunity_by_procedure(registros)
+    stats = {
+        'total': queryset.count(),
+        'completados': kpi_status['completados'],
+        'pendientes': kpi_status['pendientes'],
+        'porcentaje_completado': kpi_status['porcentaje_completado'],
+        'promedio_dias': promedio
+    }
 
-    # === Contexto final ===
-       # === PAGINACIÓN (50 por página) ===
-    from django.core.paginator import Paginator
-
-    paginator = Paginator(registros, 50)  # 50 registros por página
+    # 4. Paginación
+    paginator = Paginator(queryset, 20) # 20 por página
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Contexto final (page_obj en vez de registros)
     context = {
-        'page_obj': page_obj,           # ← para la tabla
-        'registros': page_obj,          # ← para mantener compatibilidad con filtros
-        'stats': {
-            'total': total,
-            'completados': completados,
-            'pendientes': total - completados,
-            'porcentaje_completado': porcentaje_completado,
-            'promedio_dias': promedio_dias or '-',
-        },
-        'barreras_labels': json.dumps(barreras_labels),
-        'barreras_values': json.dumps(barreras_values),
-        'estado_procedimiento_labels': json.dumps(estado_mapeo['labels']),
-        'estado_procedimiento_values': json.dumps(estado_mapeo['values']),
-        'oportunidad_procedimiento_labels': json.dumps(oportunidad['procedimiento_labels']),
-        'oportunidad_procedimiento_values': json.dumps(oportunidad['values']),
-        'filtros': {
-            'date_from': date_from or '',
-            'date_to': date_to or '',
-            'status': status or '',
-            'procedure': procedure or '',
-        }
+        'page_obj': page_obj,
+        'filtros': request.GET,
+        'stats': stats,
+        'estado_procedimiento_labels': kpi_status['labels'],
+        'estado_procedimiento_values': kpi_status['values'],
+        'oportunidad_procedimiento_labels': kpi_procedure['procedimiento_labels'],
+        'oportunidad_procedimiento_values': kpi_procedure['values'],
+        'barreras_labels': kpi_barriers['labels'],
+    'barreras_values': kpi_barriers['values'],
     }
-
     return render(request, 'followups.html', context)
 
-
-# =============================================
-# RESTO DE VISTAS (sin cambios, solo limpias)
-# =============================================
-def followup_detail(request, patient_id):
-    paciente = get_object_or_404(Patient, id=patient_id)
-    seguimientos = FollowUp.objects.filter(patient=paciente).select_related('patient').order_by('-fecha_atencion')
-    total = seguimientos.count()
-    ultima_actualizacion = seguimientos.aggregate(ultima=Max('fecha_atencion'))['ultima']
-
-    context = {
-        "paciente": paciente,
-        "seguimientos": seguimientos,
-        "resumen": {"total": total, "ultima_actualizacion": ultima_actualizacion},
-    }
-    return render(request, "followup_detail.html", context)
-
-
-def agregar_followup(request, patient_id):
-    paciente = get_object_or_404(Patient, pk=patient_id)
+def importar_datos(request):
     if request.method == 'POST':
-        FollowUp.objects.create(
-            patient=paciente,
-            fecha_atencion=request.POST.get('fecha_atencion') or None,
-            tipo_procedimiento=request.POST.get('tipo_procedimiento'),
-            estado_solicitud=request.POST.get('estado_solicitud'),
-            barrera=request.POST.get('barrera'),
-            observaciones=request.POST.get('observaciones'),
-            oportunidad=request.POST.get('oportunidad'),
-        )
-        return redirect('followup_detail', patient_id=paciente.id)
-    return render(request, 'followup_detail.html', {'paciente': paciente})
-
-
-def editar_followup(request, pk):
-    seguimiento = get_object_or_404(FollowUp, pk=pk)
-    if request.method == 'POST':
-        seguimiento.fecha_atencion = request.POST.get('fecha_atencion') or None
-        seguimiento.tipo_procedimiento = request.POST.get('tipo_procedimiento')
-        seguimiento.estado_solicitud = request.POST.get('estado_solicitud')
-        seguimiento.barrera = request.POST.get('barrera')
-        seguimiento.observaciones = request.POST.get('observaciones')
-        seguimiento.oportunidad = request.POST.get('oportunidad')
-        seguimiento.save()
-        return redirect('followup_detail', patient_id=seguimiento.patient.id)
-    return render(request, 'editar_followup.html', {'seguimiento': seguimiento})
-
-
-def eliminar_followup(request, pk):
-    seguimiento = get_object_or_404(FollowUp, pk=pk)
-    patient_id = seguimiento.patient.id
-    seguimiento.delete()
-    return redirect('followup_detail', patient_id=patient_id)
-
-
-@require_http_methods(["GET", "POST"])
-def cargar_datos(request):
-    if request.method == 'POST' and request.FILES.get('archivo'):
-        archivo = request.FILES['archivo']
-        fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "uploads"))
-        os.makedirs(fs.location, exist_ok=True)
-        nombre = fs.save(archivo.name, archivo)
-        ruta = os.path.join(fs.location, nombre)
-
-        try:
-            df = pd.read_excel(ruta) if nombre.endswith('.xlsx') else pd.read_csv(ruta)
-            df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-            processed_path = os.path.join(fs.location, "processed_latest.csv")
-            df.to_csv(processed_path, index=False, encoding='utf-8-sig')
-            request.session['siisa_processed'] = processed_path
-            return redirect('analisis_institucional')
-        except Exception as e:
-            return render(request, "cargar_datos.html", {"error": str(e)})
-
-    return render(request, "cargar_datos.html")
-
+        form = UploadFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            archivo = request.FILES['archivo']
+            fs = FileSystemStorage()
+            
+            # Guardar archivo temporalmente
+            filename = fs.save(archivo.name, archivo)
+            file_path = fs.path(filename)
+            
+            try:
+                # LLAMADA AL SERVICIO MAESTRO
+                resultado = importar_archivo_masivo(file_path)
+                
+                if resultado.get('success'):
+                    msg = f"Proceso completado. {resultado.get('mensaje', '')} (Total nuevos: {resultado.get('registros')})"
+                    messages.success(request, msg)
+                else:
+                    messages.error(request, f"Error en el archivo: {resultado.get('error')}")
+            
+            except Exception as e:
+                messages.error(request, f"Error interno al procesar: {str(e)}")
+            finally:
+                # Limpieza: Borrar archivo temporal
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            
+            return redirect('followup_dashboard')
+    else:
+        form = UploadFileForm()
+    
+    return render(request, 'cargar_datos.html', {'form': form})
+# --- PEGAR AL FINAL DE followups/views.py ---
 
 def analisis_institucional(request):
-    df, _ = load_dashboard_dataframe()
-    if df is None:
-        return render(request, "analisis_institucional.html", {"error": "No hay archivo cargado."})
-    metrics = compute_institutional_metrics(df)
-    metrics["rows"] = len(df)
-    context = {k: json.dumps(v) if isinstance(v, (list, dict)) else v for k, v in metrics.items()}
-    return render(request, "analisis_institucional.html", context)
+    """
+    Vista para el dashboard basado en CSV institucional.
+    """
+    # Usamos el servicio que ya tienes para cargar datos procesados
+    from .services import load_dashboard_dataframe, compute_institutional_metrics
+    
+    df, path = load_dashboard_dataframe()
+    metrics = {}
+    if df is not None:
+        metrics = compute_institutional_metrics(df)
+    
+    # Si no tienes el template analisis_institucional.html, redirige al dashboard temporalmente
+    return render(request, 'analisis_institucional.html', {'metrics': metrics})
 
+def followup_detail(request, pk):
+    """
+    Vista de detalle de un paciente específico.
+    """
+    followup = get_object_or_404(FollowUp, pk=pk)
+    return render(request, 'followup_detail.html', {'followup': followup})
+
+def agregar_followup(request, patient_id):
+    # Placeholder: Redirige al dashboard por ahora
+    return redirect('followup_dashboard')
+
+def editar_followup(request, pk):
+    # Placeholder: Redirige al dashboard por ahora
+    return redirect('followup_dashboard')
+
+def eliminar_followup(request, pk):
+    # Placeholder: Redirige al dashboard por ahora
+    return redirect('followup_dashboard')
 
 def ver_datos_siisa(request):
-    path = os.path.join(settings.MEDIA_ROOT, "uploads", "processed_latest.csv")
-    if not os.path.exists(path):
-        return HttpResponse("<h3 style='color:red;'>No se encontró el archivo procesado.</h3>")
-    try:
-        df = pd.read_csv(path)
-        html = df.head(10).to_html(classes='table table-bordered', border=1)
-        return HttpResponse(f"<h2>Vista previa</h2><p>{path}</p>{html}")
-    except Exception as e:
-        return HttpResponse(f"<h3>Error: {e}</h3>")
+    # Placeholder
+    return redirect('followup_dashboard')

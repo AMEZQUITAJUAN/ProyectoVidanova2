@@ -43,39 +43,30 @@
                 <form class="filters">
                     <div class="grid-4" style="margin-top: 16px;">
                         <div class="form-group">
-    <label for="date_from">Desde</label>
-    <input type="date" id="date_from" name="date_from" value="{{ filtros.date_from }}">
-</div>
-<div class="form-group">
-    <label for="date_to">Hasta</label>
-    <input type="date" id="date_to" name="date_to" value="{{ filtros.date_to }}">
-</div>
-<div class="form-group">
     <label for="status">Estado de la Solicitud</label>
     <select id="status" name="status">
         <option value="" {% if not filtros.status %}selected{% endif %}>Todos</option>
-        <option value="pendiente" {% if filtros.status == 'pendiente' %}selected{% endif %}>Pendiente</option>
-        <option value="en_gestion" {% if filtros.status == 'en_gestion' %}selected{% endif %}>En gestión</option>
-        <option value="por_gestionar" {% if filtros.status == 'por_gestionar' %}selected{% endif %}>Por gestionar</option>
-        <option value="agendado" {% if filtros.status == 'agendado' %}selected{% endif %}>Agendado</option>
-        <option value="realizado" {% if filtros.status == 'realizado' %}selected{% endif %}>Realizado</option>
+        <!-- Valores deben coincidir con RequestStatus de models.py -->
+        <option value="PENDIENTE" {% if filtros.status == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+        <option value="EN_GESTION" {% if filtros.status == 'EN_GESTION' %}selected{% endif %}>En gestión</option>
+        <option value="POR_GESTIONAR" {% if filtros.status == 'POR_GESTIONAR' %}selected{% endif %}>Por gestionar</option>
+        <option value="AGENDADO" {% if filtros.status == 'AGENDADO' %}selected{% endif %}>Agendado</option>
+        <option value="REALIZADO" {% if filtros.status == 'REALIZADO' %}selected{% endif %}>Realizado</option>
     </select>
 </div>
+
 <div class="form-group">
     <label for="procedure">Tipo de Procedimientos</label>
     <select id="procedure" name="procedure">
         <option value="" {% if not filtros.procedure %}selected{% endif %}>Todos</option>
-        <option value="cirugia" {% if filtros.procedure == 'cirugia' %}selected{% endif %}>Cirugía</option>
-        <option value="radioterapia" {% if filtros.procedure == 'radioterapia' %}selected{% endif %}>Radioterapia</option>
-        <option value="quimioterapia" {% if filtros.procedure == 'quimioterapia' %}selected{% endif %}>Quimioterapia</option>
-        <option value="consulta" {% if filtros.procedure == 'consulta' %}selected{% endif %}>Consulta</option>
-        <option value="imagenes" {% if filtros.procedure == 'imagenes' %}selected{% endif %}>Imágenes</option>
-        <option value="laboratorio" {% if filtros.procedure == 'laboratorio' %}selected{% endif %}>Laboratorio</option>
-        <option value="patologia" {% if filtros.procedure == 'patologia' %}selected{% endif %}>Patología</option>
+        <option value="CIRUGIA" {% if filtros.procedure == 'CIRUGIA' %}selected{% endif %}>Cirugía</option>
+        <option value="RADIOTERAPIA" {% if filtros.procedure == 'RADIOTERAPIA' %}selected{% endif %}>Radioterapia</option>
+        <option value="QUIMIOTERAPIA" {% if filtros.procedure == 'QUIMIOTERAPIA' %}selected{% endif %}>Quimioterapia</option>
+        <option value="CONSULTA" {% if filtros.procedure == 'CONSULTA' %}selected{% endif %}>Consulta</option>
+        <option value="IMAGENES" {% if filtros.procedure == 'IMAGENES' %}selected{% endif %}>Imágenes</option>
     </select>
 </div>
-                    </div>
-                    
+                    </div> 
                     <!-- Sección Agendamientos -->
                     <div style="margin-top: 24px;">
                         <h3>Agendamientos</h3>
@@ -200,16 +191,16 @@
                 <td>{{ r.cups|default:"-" }}</td>  
                 <td style="width: 260px;">{{ r.servicio|default:r.observaciones|default:"Sin descripción" }}</td>  
                 <td>  
-                    {% if "realiz" in r.estado_solicitud|lower %}  
-                        <span class="estado realizado">REALIZADO</span>  
-                    {% elif "agend" in r.estado_solicitud|lower %}  
-                        <span class="estado agendado">AGENDADO</span>  
-                    {% elif "pend" in r.estado_solicitud|lower %}  
-                        <span class="estado pendiente">PENDIENTE</span>  
-                    {% else %}  
-                        <span class="estado otro">{{ r.estado_solicitud|upper|default:"Sin estado" }}</span>  
-                    {% endif %}  
-                </td>  
+                {% if r.estado_solicitud == "REALIZADO" %}  
+                    <span class="estado realizado">REALIZADO</span>  
+                {% elif r.estado_solicitud == "AGENDADO" %}  
+                    <span class="estado agendado">AGENDADO</span>  
+                {% elif r.estado_solicitud == "PENDIENTE" or r.estado_solicitud == "EN_GESTION" %}  
+                    <span class="estado pendiente">{{ r.get_estado_solicitud_display|upper }}</span>  
+                {% else %}  
+                    <span class="estado otro">{{ r.get_estado_solicitud_display|default:"-" }}</span>  
+                {% endif %}  
+            </td>  
                 <td>{{ r.barrera|default:"Sin barrera" }}</td>  
                 <td>{{ r.fecha_solicitud_cita|date:"d/m/Y"|default:"-" }}</td>  
                 <td>{{ r.fecha_cita|date:"d/m/Y"|default:"-" }}</td>  

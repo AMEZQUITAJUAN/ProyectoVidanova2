@@ -46,3 +46,16 @@ class FollowUp(models.Model):
 
     def __str__(self):
         return f"{self.patient} - {self.diagnostico or 'Sin diagnóstico'} ({self.fecha_atencion})"
+    # --- CÁLCULO AUTOMÁTICO DE OPORTUNIDAD ---
+    # Pega esto justo antes de terminar la clase FollowUp
+    @property
+    def dias_diff(self):
+        """
+        Calcula la diferencia en días entre la solicitud y la cita.
+        Se usa en el Dashboard para la columna 'Días'.
+        """
+        if self.fecha_cita and self.fecha_solicitud_cita:
+            # Si ambas fechas existen, restamos
+            delta = self.fecha_cita - self.fecha_solicitud_cita
+            return delta.days
+        return None
