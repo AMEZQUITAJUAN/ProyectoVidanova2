@@ -1,114 +1,190 @@
-{% extends "base.html" %}
-{% block title %}Análisis institucional{% endblock %}
-{% block content %}
-<h2>Análisis Institucional (SIISA)</h2>
-<p>Filas procesadas: {{ rows }}</p>
-<a href="{% url 'cargar_datos' %}" class="btn" style="background:#22c55e; color:white;">➕ Cargar otro archivo</a>
+{% extends "layout.html" %}
+{% block title %}Análisis Institucional{% endblock %}
 
-<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px,1fr)); gap:20px; margin-top:20px;">
-  <div class="card">
-    <h4>Pacientes por diagnóstico</h4>
-    <canvas id="diagChart"></canvas>
-  </div>
-  <div class="card">
-    <h4>Distribución por género</h4>
-    <canvas id="genderChart"></canvas>
-  </div>
-  <div class="card">
-    <h4>Distribución por edad</h4>
-    <canvas id="ageChart"></canvas>
-  </div>
-  <div class="card">
-    <h4>Realizados vs Pendientes</h4>
-    <canvas id="stateChart"></canvas>
-  </div>
-  <div class="card">
-    <h4>Oportunidad promedio por mes</h4>
-    <canvas id="oppChart"></canvas>
-  </div>
-  <div class="card">
-    <h4>Atenciones por mes</h4>
-    <canvas id="countChart"></canvas>
-  </div>
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-primary fw-bold mb-0">Análisis Demográfico y Operativo</h2>
+            <p class="text-muted">Vista global de la población oncológica gestionada.</p>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-primary fs-5">{{ rows }} Registros Totales</span>
+        </div>
+    </div>
+
+    <!-- Grid de Gráficas -->
+    <div class="row g-4">
+        
+        <!-- 1. Distribución por Género -->
+        <div class="col-md-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white fw-bold">Distribución por Género</div>
+                <div class="card-body">
+                    <div style="height: 250px;">
+                        <canvas id="genderChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Rangos de Edad -->
+        <div class="col-md-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white fw-bold">Rangos de Edad</div>
+                <div class="card-body">
+                    <div style="height: 250px;">
+                        <canvas id="ageChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Estado de Solicitudes -->
+        <div class="col-md-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white fw-bold">Estado General</div>
+                <div class="card-body">
+                    <div style="height: 250px;">
+                        <canvas id="stateChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Procedimientos (Antes Diagnóstico) -->
+        <div class="col-md-6">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white fw-bold">Top Procedimientos Solicitados</div>
+                <div class="card-body">
+                    <div style="height: 300px;">
+                        <canvas id="diagChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Volumen Mensual -->
+        <div class="col-md-6">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white fw-bold">Volumen de Solicitudes por Mes</div>
+                <div class="card-body">
+                    <div style="height: 300px;">
+                        <canvas id="countChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <div class="mt-4 text-center">
+        <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left"></i> Volver al Tablero de Gestión
+        </a>
+    </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
-/*
-  Seguridad:
-  - Usamos escapejs para que la cadena JSON inyectada sea segura.
-  - JSON.parse sobre el string inyectado para obtener arrays/objetos JS.
-  - Si ocurre cualquier error devolvemos [] o {} por defecto.
-*/
+    // Recuperamos los datos enviados desde Django (ya vienen como JSON string)
+    // Nota: Como usamos json.dumps en Python, aquí llegan directo, no necesitamos 'escapejs' complejo
+    const genderLabels = {{ gender_labels|safe }};
+    const genderValues = {{ gender_values|safe }};
 
-// Las variables ya vienen serializadas como JSON desde la vista
-const diagLabels = JSON.parse('{{ diag_labels|default:"[]"|escapejs }}');
-const diagValues = JSON.parse('{{ diag_values|default:"[]"|escapejs }}');
+    const ageLabels = {{ age_labels|safe }};
+    const ageValues = {{ age_values|safe }};
 
-const genderLabels = JSON.parse('{{ gender_labels|default:"[]"|escapejs }}');
-const genderValues = JSON.parse('{{ gender_values|default:"[]"|escapejs }}');
+    const stateLabels = {{ state_labels|safe }};
+    const stateValues = {{ state_values|safe }};
 
-const ageLabels = JSON.parse('{{ age_labels|default:"[]"|escapejs }}');
-const ageValues = JSON.parse('{{ age_values|default:"[]"|escapejs }}');
+    const diagLabels = {{ diag_labels|safe }};
+    const diagValues = {{ diag_values|safe }};
 
-const stateLabels = JSON.parse('{{ state_labels|default:"[]"|escapejs }}');
-const stateValues = JSON.parse('{{ state_values|default:"[]"|escapejs }}');
+    const monthLabels = {{ month_labels|safe }};
+    const cntValues = {{ cnt_values|safe }};
 
-const monthLabels = JSON.parse('{{ month_labels|default:"[]"|escapejs }}');
-const monthValues = JSON.parse('{{ month_values|default:"[]"|escapejs }}');
+    // Configuración Común
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } }
+    };
 
-const cntLabels = JSON.parse('{{ cnt_labels|default:"[]"|escapejs }}');
-const cntValues = JSON.parse('{{ cnt_values|default:"[]"|escapejs }}');
+    // 1. Género (Doughnut)
+    new Chart(document.getElementById('genderChart'), {
+        type: 'doughnut',
+        data: {
+            labels: genderLabels,
+            datasets: [{
+                data: genderValues,
+                backgroundColor: ['#3b82f6', '#ec4899', '#9ca3af']
+            }]
+        },
+        options: commonOptions
+    });
 
-/* Funciones para crear gráficas (Chart.js) */
-function makeBar(id, labels, values, labelName = 'Count') {
-  const ctx = document.getElementById(id)?.getContext('2d');
-  if (!ctx) return;
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: labelName,
-        data: values,
-        tension: 0.1
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
-}
+    // 2. Edad (Bar Vertical)
+    new Chart(document.getElementById('ageChart'), {
+        type: 'bar',
+        data: {
+            labels: ageLabels,
+            datasets: [{
+                label: 'Pacientes',
+                data: ageValues,
+                backgroundColor: '#8b5cf6'
+            }]
+        },
+        options: commonOptions
+    });
 
-function makeDoughnut(id, labels, values) {
-  const ctx = document.getElementById(id)?.getContext('2d');
-  if (!ctx) return;
-  new Chart(ctx, {
-    type: 'doughnut',
-    data: { labels: labels, datasets: [{ data: values }] },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
-}
+    // 3. Estados (Pie)
+    new Chart(document.getElementById('stateChart'), {
+        type: 'pie',
+        data: {
+            labels: stateLabels,
+            datasets: [{
+                data: stateValues,
+                backgroundColor: ['#22c55e', '#f59e0b', '#3b82f6', '#ef4444', '#64748b']
+            }]
+        },
+        options: commonOptions
+    });
 
-function makeLine(id, labels, values, labelName = 'Valor') {
-  const ctx = document.getElementById(id)?.getContext('2d');
-  if (!ctx) return;
-  new Chart(ctx, {
-    type: 'line',
-    data: { labels: labels, datasets: [{ label: labelName, data: values, fill: false, tension: 0.2 }] },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
-}
+    // 4. Procedimientos (Bar Horizontal)
+    new Chart(document.getElementById('diagChart'), {
+        type: 'bar',
+        data: {
+            labels: diagLabels,
+            datasets: [{
+                label: 'Cantidad',
+                data: diagValues,
+                backgroundColor: '#0ea5e9',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            ...commonOptions,
+            indexAxis: 'y', // Hace las barras horizontales
+        }
+    });
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Aquí creamos las gráficas solo si hay datos
-  if (diagLabels.length && diagValues.length) makeBar('diagChart', diagLabels, diagValues);
-  if (genderLabels.length && genderValues.length) makeDoughnut('genderChart', genderLabels, genderValues);
-  if (ageLabels.length && ageValues.length) makeBar('ageChart', ageLabels, ageValues, 'Pacientes');
-  if (stateLabels.length && stateValues.length) makeDoughnut('stateChart', stateLabels, stateValues);
-  if (monthLabels.length && monthValues.length) makeLine('oppChart', monthLabels, monthValues, 'Oportunidad');
-  if (cntLabels.length && cntValues.length) makeBar('countChart', cntLabels, cntValues, 'Atenciones');
-});
+    // 5. Volumen Mensual (Line)
+    new Chart(document.getElementById('countChart'), {
+        type: 'line',
+        data: {
+            labels: monthLabels,
+            datasets: [{
+                label: 'Solicitudes',
+                data: cntValues,
+                borderColor: '#22c55e',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: commonOptions
+    });
 </script>
-
-<a href="/seguimiento/" style="color: #3b82f6;">← Volver al tablero</a>
-
 {% endblock %}

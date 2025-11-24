@@ -31,81 +31,136 @@
         <header class="section">
             <div class="card">
                 <h1><i class="fas fa-chart-line"></i> Tablero Administrativo</h1>
-                <a href="{% url 'cargar_datos' %}">Cargar datos</a>
-            <a href="{% url 'analisis_institucional' %}">Análisis institucional</a>
+                <!-- Ponlo al lado del botón de Cargar Datos o en el encabezado -->
+<div class="d-flex gap-2 flex-wrap">
+    <!-- Botón Cargar -->
+    <a href="{% url 'cargar_datos' %}" class="btn btn-primary">
+        <i class="fas fa-cloud-upload-alt"></i> Cargar Datos
+    </a>
+    
+    <!-- Botón Exportar -->
+    <a href="{% url 'exportar_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+        <i class="fas fa-file-excel"></i> Exportar
+    </a>
+
+    <!-- NUEVO: Botón Análisis -->
+    <a href="{% url 'analisis_institucional' %}" class="btn btn-info text-white">
+        <i class="fas fa-chart-pie"></i> Ver Análisis
+    </a>
+</div>
             </div>
         </header>
 
         <!-- Filtros -->
         <section class="section">
-            <div class="card">
-                <h2><i class="fas fa-filter"></i> Filtros</h2>
-                <form class="filters">
-                    <div class="grid-4" style="margin-top: 16px;">
-                        <div class="form-group">
-    <label for="status">Estado de la Solicitud</label>
-    <select id="status" name="status">
-        <option value="" {% if not filtros.status %}selected{% endif %}>Todos</option>
-        <!-- Valores deben coincidir con RequestStatus de models.py -->
-        <option value="PENDIENTE" {% if filtros.status == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
-        <option value="EN_GESTION" {% if filtros.status == 'EN_GESTION' %}selected{% endif %}>En gestión</option>
-        <option value="POR_GESTIONAR" {% if filtros.status == 'POR_GESTIONAR' %}selected{% endif %}>Por gestionar</option>
-        <option value="AGENDADO" {% if filtros.status == 'AGENDADO' %}selected{% endif %}>Agendado</option>
-        <option value="REALIZADO" {% if filtros.status == 'REALIZADO' %}selected{% endif %}>Realizado</option>
-    </select>
-</div>
-
-<div class="form-group">
-    <label for="procedure">Tipo de Procedimientos</label>
-    <select id="procedure" name="procedure">
-        <option value="" {% if not filtros.procedure %}selected{% endif %}>Todos</option>
-        <option value="CIRUGIA" {% if filtros.procedure == 'CIRUGIA' %}selected{% endif %}>Cirugía</option>
-        <option value="RADIOTERAPIA" {% if filtros.procedure == 'RADIOTERAPIA' %}selected{% endif %}>Radioterapia</option>
-        <option value="QUIMIOTERAPIA" {% if filtros.procedure == 'QUIMIOTERAPIA' %}selected{% endif %}>Quimioterapia</option>
-        <option value="CONSULTA" {% if filtros.procedure == 'CONSULTA' %}selected{% endif %}>Consulta</option>
-        <option value="IMAGENES" {% if filtros.procedure == 'IMAGENES' %}selected{% endif %}>Imágenes</option>
-    </select>
-</div>
-                    </div> 
-                    <!-- Sección Agendamientos -->
-                    <div style="margin-top: 24px;">
-                        <h3>Agendamientos</h3>
-                        <div class="grid-4" style="margin-top: 12px;">
-                            <div class="form-group">
-                                <label for="appointment_type">Tipo de Paciente</label>
-                                <select id="appointment_type" name="appointment_type">
-                                    <option value="">Todos</option>
-                                    <option value="incidentes">Incidentes</option>
-                                    <option value="prebalentes">Prebalentes</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="agrupadores">Agrupador diagnóstico</label>
-                                <select id="priority" name="priority">
-                                    <option value="">Todas</option>
-                                    <option value="codigo">codigo</option>
-                                    <option value="agrupador">Agrupador</option>
-                                </select>
-                            </div>
+    <div class="card shadow-sm">
+        <div class="card-header bg-white border-bottom-0 pb-0">
+            <h5 class="text-primary fw-bold"><i class="fas fa-filter"></i> Búsqueda y Filtros</h5>
+        </div>
+        
+        <div class="card-body">
+            <!-- INICIO DEL FORMULARIO ÚNICO -->
+            <!-- Al envolver todo, el buscador y los select viajan juntos al servidor -->
+            <form class="filters" method="GET" action="{% url 'followup_dashboard' %}">
+                
+                <!-- 1. BARRA DE BÚSQUEDA (Principal) -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-light border-end-0">
+                                <i class="bx bx-search text-muted"></i>
+                            </span>
+                            <input type="text" 
+                                   name="q" 
+                                   class="form-control border-start-0 bg-light" 
+                                   placeholder="Buscar por: Cédula, Nombre del Paciente o Palabras clave en observaciones..." 
+                                   value="{{ filtros.q|default:'' }}" 
+                                   aria-label="Buscar">
                         </div>
                     </div>
+                </div>
+
+                <hr class="text-muted opacity-25">
+
+                <!-- 2. FILTROS PRINCIPALES (Grid) -->
+                <div class="row g-3">
                     
-                    <div class="filters-actions" style="margin-top: 20px;">
-                        <button class="btn primary" type="submit">
-                            <i class="fas fa-search"></i> Aplicar
-                        </button>
-                        <button class="btn secondary" type="button">
-                            <i class="fas fa-times"></i> Limpiar
+                    <!-- Rango de Fechas -->
+                    <div class="col-md-3">
+                        <label for="date_from" class="form-label fw-bold small text-muted">Desde</label>
+                        <input type="date" id="date_from" name="date_from" class="form-control" value="{{ filtros.date_from }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="date_to" class="form-label fw-bold small text-muted">Hasta</label>
+                        <input type="date" id="date_to" name="date_to" class="form-control" value="{{ filtros.date_to }}">
+                    </div>
+
+                    <!-- Estado -->
+                    <div class="col-md-3">
+                        <label for="status" class="form-label fw-bold small text-muted">Estado Solicitud</label>
+                        <select id="status" name="status" class="form-select">
+                            <option value="" {% if not filtros.status %}selected{% endif %}>Todos los estados</option>
+                            <option value="PENDIENTE" {% if filtros.status == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+                            <option value="EN_GESTION" {% if filtros.status == 'EN_GESTION' %}selected{% endif %}>En gestión</option>
+                            <option value="POR_GESTIONAR" {% if filtros.status == 'POR_GESTIONAR' %}selected{% endif %}>Por gestionar</option>
+                            <option value="AGENDADO" {% if filtros.status == 'AGENDADO' %}selected{% endif %}>Agendado</option>
+                            <option value="REALIZADO" {% if filtros.status == 'REALIZADO' %}selected{% endif %}>Realizado</option>
+                        </select>
+                    </div>
+
+                    <!-- Procedimiento -->
+                    <div class="col-md-3">
+                        <label for="procedure" class="form-label fw-bold small text-muted">Tipo Procedimiento</label>
+                        <select id="procedure" name="procedure" class="form-select">
+                            <option value="" {% if not filtros.procedure %}selected{% endif %}>Todos</option>
+                            <option value="CIRUGIA" {% if filtros.procedure == 'CIRUGIA' %}selected{% endif %}>Cirugía</option>
+                            <option value="RADIOTERAPIA" {% if filtros.procedure == 'RADIOTERAPIA' %}selected{% endif %}>Radioterapia</option>
+                            <option value="QUIMIOTERAPIA" {% if filtros.procedure == 'QUIMIOTERAPIA' %}selected{% endif %}>Quimioterapia</option>
+                            <option value="CONSULTA" {% if filtros.procedure == 'CONSULTA' %}selected{% endif %}>Consulta</option>
+                            <option value="IMAGENES" {% if filtros.procedure == 'IMAGENES' %}selected{% endif %}>Imágenes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 3. FILTROS AVANZADOS (Agrupadores) -->
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <label for="appointment_type" class="form-label fw-bold small text-muted">Tipo de Caso</label>
+                        <select id="appointment_type" name="appointment_type" class="form-select">
+                            <option value="">Todos</option>
+                            <!-- Corregido: Prebalentes -> Prevalentes -->
+                            <option value="incidentes" {% if filtros.appointment_type == 'incidentes' %}selected{% endif %}>Incidentes (Nuevos)</option>
+                            <option value="prevalentes" {% if filtros.appointment_type == 'prevalentes' %}selected{% endif %}>Prevalentes (Antiguos)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="priority" class="form-label fw-bold small text-muted">Criterio de Prioridad</label>
+                        <select id="priority" name="priority" class="form-select">
+                            <option value="">Estándar</option>
+                            <option value="alta" {% if filtros.priority == 'alta' %}selected{% endif %}>Prioridad Alta</option>
+                            <option value="media" {% if filtros.priority == 'media' %}selected{% endif %}>Prioridad Media</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 4. BOTONES DE ACCIÓN -->
+                <div class="row mt-4">
+                    <div class="col-12 d-flex justify-content-end gap-2">
+                        <!-- El botón Limpiar ahora es un enlace que recarga la página limpia -->
+                        <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Limpiar Filtros
+                        </a>
+                        <button class="btn btn-primary px-4" type="submit">
+                            <i class="fas fa-search"></i> Filtrar Resultados
                         </button>
                     </div>
-                </form>
-                <!-- Buscador -->
-                <section class="search">
-                    <input type="text" placeholder="🔍 Buscar paciente, caso o procedimiento" aria-label="Buscar">
-                    <button class="btn" title="Buscar"><i class="bx bx-search"></i></button>
-                </section>
-            </div>
-        </section>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</section>
 
         <!-- KPI Grid -->
 <section class="section">
@@ -184,56 +239,116 @@
             </tr>  
         </thead>  
         <tbody>  
-            {% for r in page_obj %} 
-            <tr class="patient-row">  
-                <td>{{ r.patient.nombre|default:"Paciente anónimo" }} (ID: {{ r.patient.id }})</td>  
-                <td><span class="badge badge-proc">{{ r.tipo_procedimiento|upper|default:"-" }}</span></td>  
-                <td>{{ r.cups|default:"-" }}</td>  
-                <td style="width: 260px;">{{ r.servicio|default:r.observaciones|default:"Sin descripción" }}</td>  
-                <td>  
-                {% if r.estado_solicitud == "REALIZADO" %}  
-                    <span class="estado realizado">REALIZADO</span>  
-                {% elif r.estado_solicitud == "AGENDADO" %}  
-                    <span class="estado agendado">AGENDADO</span>  
-                {% elif r.estado_solicitud == "PENDIENTE" or r.estado_solicitud == "EN_GESTION" %}  
-                    <span class="estado pendiente">{{ r.get_estado_solicitud_display|upper }}</span>  
-                {% else %}  
-                    <span class="estado otro">{{ r.get_estado_solicitud_display|default:"-" }}</span>  
-                {% endif %}  
-            </td>  
-                <td>{{ r.barrera|default:"Sin barrera" }}</td>  
-                <td>{{ r.fecha_solicitud_cita|date:"d/m/Y"|default:"-" }}</td>  
-                <td>{{ r.fecha_cita|date:"d/m/Y"|default:"-" }}</td>  
-                <td>{{ r.dias_diff|default:"-" }}</td>  
-                <td>  
-                    <a href="{% url 'followup_detail' r.patient.id %}" class="btn btn-sm btn-primary">Ver</a>  
-                </td>  
-            </tr>  
-            {% empty %}  
-            <tr>  
-                <td colspan="10" class="text-center">No hay registros disponibles con estos filtros.</td>  
-            </tr>  
-            {% endfor %}  
-        </tbody>  
+    {% for r in page_obj %} 
+    <tr class="patient-row align-middle">  
+        <!-- Nombre arreglado con el paso 1 -->
+        <td>
+            <div class="fw-bold">{{ r.patient.nombre }}</div>
+            <small class="text-muted">{{ r.patient.documento }}</small>
+        </td>  
+        <td><span class="badge bg-secondary">{{ r.tipo_procedimiento|upper|default:"-" }}</span></td>  
+        <td>{{ r.cups|default:"-" }}</td>  
+        <td style="max-width: 200px;" class="text-truncate">{{ r.servicio|default:r.observaciones|default:"-" }}</td>  
+        
+        <!-- Estados con colores Bootstrap -->
+        <td>  
+            {% if r.estado_solicitud == "REALIZADO" %}  
+                <span class="badge bg-success">REALIZADO</span>  
+            {% elif r.estado_solicitud == "AGENDADO" %}  
+                <span class="badge bg-primary">AGENDADO</span>  
+            {% elif r.estado_solicitud == "PENDIENTE" %}  
+                <span class="badge bg-warning text-dark">PENDIENTE</span>  
+            {% elif r.estado_solicitud == "EN_GESTION" %}  
+                <span class="badge bg-info text-dark">GESTIÓN</span>
+            {% elif r.estado_solicitud == "CANCELADO" %}
+                <span class="badge bg-secondary">CANCELADO</span>
+            {% else %}  
+                <span class="badge bg-light text-dark border">{{ r.estado_solicitud|default:"-" }}</span>  
+            {% endif %}  
+        </td>  
+        
+        <td>{{ r.barrera|default:"-" }}</td>  
+        <td>{{ r.fecha_solicitud_cita|date:"d/m/Y"|default:"-" }}</td>  
+        <td>{{ r.fecha_cita|date:"d/m/Y"|default:"-" }}</td>  
+        <td class="text-center font-monospace">{{ r.dias_diff|default:"-" }}</td>  
+        
+        <!-- COLUMNA ÚNICA DE ACCIONES -->
+        <td>
+            <div class="btn-group" role="group">
+                <!-- Ver -->
+                <a href="{% url 'followup_detail' r.id %}" class="btn btn-sm btn-info text-white" title="Ver Detalle">
+                    <i class="fas fa-eye"></i>
+                </a>
+                <!-- Editar -->
+                <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-warning text-white" title="Editar">
+                    <i class="fas fa-pen"></i>
+                </a>
+                <!-- Eliminar -->
+                <a href="{% url 'eliminar_followup' r.id %}" class="btn btn-sm btn-danger text-white" title="Eliminar">
+                    <i class="fas fa-trash-alt"></i>
+                </a>
+            </div>
+        </td>  
+    </tr>  
+    {% empty %}  
+    <tr>  
+        <td colspan="10" class="text-center py-4 text-muted">
+            <i class="fas fa-inbox fa-2x mb-2"></i><br>
+            No hay registros disponibles con estos filtros.
+        </td>  
+    </tr> 
+    {% endfor %}  
+</tbody> 
     </table>  
 </div>  
 
-<!-- Paginación al Final -->
-{% if page_obj.has_other_pages %}
-<div class="card" style="margin-top: 20px; text-align: center;">
-    <div class="pagination">
-        {% if page_obj.has_previous %}
-            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" class="btn primary">Anterior</a>
-        {% endif %}
+<!-- PAGINACIÓN LIMPIA, COMPACTA Y SIN DUPLICADOS -->
+{% if page_obj.has_other_pages or page_size %}
+<div class="card mt-3 p-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         
-        <span style="margin: 0 15px; font-weight: bold;">
-            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} 
-            (Total: {{ page_obj.paginator.count }} registros)
-        </span>
-        
-        {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" class="btn primary">Siguiente</a>
-        {% endif %}
+        <!-- Selector de filas por página -->
+        <form method="get" class="d-flex align-items-center gap-2">
+            {% for key, value in request.GET.items %}
+                {% if key != 'page' and key != 'page_size' %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endif %}
+            {% endfor %}
+            <small class="text-muted">Filas por página:</small>
+            <select name="page_size" onchange="this.form.submit()" class="form-select form-select-sm" style="width: auto;">
+                <option value="20" {% if page_size == 20 %}selected{% endif %}>20</option>
+                <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
+                <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
+            </select>
+        </form>
+
+        <!-- Información de registros -->
+        <div class="text-muted small">
+            Mostrando {{ page_obj.start_index }}–{{ page_obj.end_index }} de {{ page_obj.paginator.count }} registros
+        </div>
+
+        <!-- Botones de paginación -->
+        <div class="d-flex gap-1">
+            {% if page_obj.has_previous %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}{% if request.GET.page_size %}&page_size={{ page_size }}{% endif %}&page={{ page_obj.previous_page_number }}"
+                   class="btn btn-primary btn-sm">Anterior</a>
+            {% endif %}
+
+            <!-- Números cercanos -->
+            {% for num in page_obj.paginator.page_range %}
+                {% if num >= page_obj.number|add:-1 and num <= page_obj.number|add:1 %}
+                    <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}{% if request.GET.page_size %}&page_size={{ page_size }}{% endif %}&page={{ num }}"
+                       class="btn {% if page_obj.number == num %}btn-primary{% else %}btn-outline-secondary{% endif %} btn-sm">
+                        {{ num }}
+                    </a>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}{% if request.GET.page_size %}&page_size={{ page_size }}{% endif %}&page={{ page_obj.next_page_number }}"
+                   class="btn btn-primary btn-sm">Siguiente</a>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endif %}

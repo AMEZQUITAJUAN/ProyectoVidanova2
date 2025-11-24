@@ -4,79 +4,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Vidanova{% endblock %}</title>
+    
+    <!-- 1. BOOTSTRAP (Vital para los estilos de botones y columnas) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Iconos -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Tus estilos personalizados -->
     <link rel="stylesheet" href="{% static 'css/seguimiento.css' %}">
     <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
-
-    
-    <title>
-        {% block title%}
-        Vidanova
-        {% endblock %}
-    </title>
 </head>
 <body>
-    <!-- Left Sidebar -->
-    <div class="side-menu">     
-        <nav class="sidebar">
-            <ul>
-                <li class="active" data-tooltip="Dashboard">
-                    <i class="bx bxs-dashboard"></i>
-                    <samp>Tablero de control</samp>
-                </li>
-                <li data-tooltip="Pacientes">
-                    <i class="bx bxs-graduation"></i>
-                    <samp>Pacientes</samp>
-                </li>
-                <li data-tooltip="Citas">
-                    <i class="bx bxs-book-reader"></i>
-                    <samp>Citas</samp>
-                </li>
-                <li data-tooltip="Doctores">
-                    <i class="bx bxs-school"></i>
-                    <samp>Equipos</samp>
-                </li>
-                <li data-tooltip="Doctores">
-                    <i class="bx bxs-school"></i>
-                    <samp>Doctores</samp>
-                </li>
-                 <li data-tooltip="Ayuda">
-                    <i class="bx bx-money-withdraw"></i>
-                    <samp>Mensajes</samp>
-                </li>
-                <li data-tooltip="Ajustes">
-                    <i class="bx bx-cog"></i>
-                    <samp>Ajustes</samp>
-                </li>
-            </ul>
-        </nav>
+    <div class="d-flex" id="wrapper">
+        <!-- Sidebar (Mantenemos tu estructura pero con clases bootstrap para layout) -->
+        <div class="side-menu bg-white" id="sidebar-wrapper">     
+            <nav class="sidebar">
+                <ul>
+                    <li class="active"><i class="bx bxs-dashboard"></i><samp>Tablero</samp></li>
+                    <li><i class="bx bxs-graduation"></i><samp>Pacientes</samp></li>
+                    <li><i class="bx bxs-book-reader"></i><samp>Citas</samp></li>
+                </ul>
+            </nav>
+        </div>
+        
+        <!-- Contenido Principal -->
+        <div id="page-content-wrapper" class="w-100">
+            <!-- 2. BLOQUE DE ALERTAS (Aquí saldrán los mensajes verdes/rojos) -->
+            {% if messages %}
+                <div class="container mt-3">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="container-fluid p-4">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
     </div>
-    
-    <!-- Contenido Principal -->
-    <main class="content">
-        {% block content %}
-        {% endblock %}
-    </main>
 
-    <!-- Botón hamburguesa para móvil (opcional) -->
-    <button class="menu-toggle" onclick="toggleSidebar()">
-        <i class="bx bx-menu"></i>
-    </button>
-
-    <script>
-        // JavaScript opcional para funcionalidad adicional
-        function toggleSidebar() {
-            const sidebar = document.querySelector('.side-menu');
-            sidebar.classList.toggle('mobile-open');
-        }
-
-        // Agregar clase active al elemento clickeado
-        document.querySelectorAll('.sidebar li').forEach(item => {
-            item.addEventListener('click', function() {
-                document.querySelectorAll('.sidebar li').forEach(li => li.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-    </script>
+    <!-- Scripts de Bootstrap -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

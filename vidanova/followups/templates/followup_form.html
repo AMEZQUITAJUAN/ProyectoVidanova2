@@ -1,0 +1,132 @@
+{% extends 'layout.html' %}
+
+{% block title %}Editar Seguimiento{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 800px;">
+    
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="fas fa-edit"></i> Editar Seguimiento</h4>
+            <a href="{% url 'followup_dashboard' %}" class="btn btn-sm btn-light text-primary fw-bold">Volver</a>
+        </div>
+        
+        <div class="card-body">
+            <!-- Datos Informativos del Paciente -->
+            <div class="alert alert-info d-flex align-items-center">
+                <i class="fas fa-user-circle fa-2x me-3"></i>
+                <div>
+                    <strong>Paciente:</strong> {{ patient.nombre }}<br>
+                    <small>Documento: {{ patient.documento }}</small>
+                </div>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- Si hay errores de validación -->
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        {{ form.errors }}
+                    </div>
+                {% endif %}
+
+                <div class="row g-3">
+                    <!-- Fila 1 -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Tipo de Procedimiento</label>
+                        {{ form.tipo_procedimiento }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Estado Actual</label>
+                        {{ form.estado_solicitud }}
+                    </div>
+
+                    <!-- Fila 2 -->
+                    <div class="col-md-6">
+                        <label class="form-label">Fecha Solicitud</label>
+                        {{ form.fecha_solicitud_cita }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Fecha Cita</label>
+                        {{ form.fecha_cita }}
+                    </div>
+
+                    <!-- Fila 3: Barreras (Importante) -->
+                    <div class="col-12">
+                        <div class="p-3 bg-light border rounded">
+                            <label class="form-label text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Barrera / Problema</label>
+                            {{ form.barrera }}
+                            <div class="form-text">Si el trámite está demorado, indica la razón principal aquí.</div>
+                        </div>
+                    </div>
+
+                    <!-- Fila 4 -->
+                     <div class="col-md-12 mb-3">
+    <label class="form-label fw-bold">Aseguradora (EPS)</label>
+    {{ form.entidad_aseguradora }}
+</div>
+                    <div class="col-md-6">
+                        <label class="form-label">CUPS</label>
+                        {{ form.cups }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Servicio</label>
+                        {{ form.servicio }}
+                    </div>
+
+                    <!-- Observaciones -->
+                    <div class="col-12">
+                        <label class="form-label">Observaciones</label>
+                        {{ form.observaciones }}
+                    </div>
+
+                    <!-- Ocultar selector de paciente (ya sabemos quién es) -->
+                    <div class="d-none">
+                        {{ form.patient }}
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- LISTAS PARA AUTOCOMPLETADO -->
+<!-- El navegador usa esto para sugerir opciones mientras escriben -->
+
+<datalist id="servicios_list">
+    <!-- Opciones desde la Base de Datos -->
+    {% for s in servicios_list %}
+        {% if s %} <option value="{{ s }}"> {% endif %}
+    {% endfor %}
+    <!-- Opciones predeterminadas sugeridas -->
+    <option value="Oncología Clínica">
+    <option value="Radioterapia">
+    <option value="Cirugía Oncológica">
+    <option value="Dolor y Cuidados Paliativos">
+    <option value="Dermatología">
+    <option value="Ginecología Oncológica">
+</datalist>
+
+<datalist id="aseguradoras_list">
+    {% for a in aseguradoras_list %}
+        {% if a %} <option value="{{ a }}"> {% endif %}
+    {% endfor %}
+    <!-- EPS Comunes Colombia (Para ayudar al inicio) -->
+    <option value="EPS SURA">
+    <option value="SANITAS">
+    <option value="SALUD TOTAL">
+    <option value="NUEVA EPS">
+    <option value="COOSALUD">
+    <option value="MUTUAL SER">
+    <option value="CAJACOPI">
+    <option value="ASMET SALUD">
+</datalist>
+
+{% endblock %}

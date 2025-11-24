@@ -34,4 +34,22 @@ class Patient(models.Model):
 
     def __str__(self):
         return f"{self.nombre_1} {self.apellido_1} ({self.numero_documento})"
+    # ... (resto de tus campos) ...
+    activo = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.nombre_1} {self.apellido_1} ({self.numero_documento})"
+    
+    # --- AGREGA ESTO AL FINAL DE LA CLASE ---
+    @property
+    def nombre(self):
+        """Une los nombres para mostrar el nombre completo automáticamente"""
+        n2 = f" {self.nombre_2}" if self.nombre_2 else ""
+        a2 = f" {self.apellido_2}" if self.apellido_2 else ""
+        return f"{self.nombre_1}{n2} {self.apellido_1}{a2}"
+
+    @property
+    def documento(self):
+        """Alias para que el código que usa .documento funcione con .numero_documento"""
+        return self.numero_documento
 

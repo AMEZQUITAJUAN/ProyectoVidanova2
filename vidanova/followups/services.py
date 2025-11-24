@@ -2,12 +2,15 @@ import os
 import unicodedata
 import pandas as pd
 import numpy as np
+import json
 from django.db import transaction
 from django.conf import settings
 from django.db.models import Count, Q
 from patients.models import Patient
 from treatments.models import Treatment
 from .models import FollowUp  # Importamos el modelo, NO lo definimos aquí
+from django.db.models.functions import TruncMonth
+from django.db.models import Avg, F, ExpressionWrapper, fields
 
 def normalize_columns(cols):
     def clean(c):
@@ -297,4 +300,70 @@ def compute_barriers(queryset=None):
     return {
         "labels": labels,
         "values": values,
+    }
+def compute_institutional_metrics_db():
+    """
+    Calcula métricas demográficas y operativas directamente de la Base de Datos.
+    """
+    # 1. GÉNERO (Desde modelo Patient)
+    # Asume que el campo se llama 'genero' en Patient
+    gender_qs = Patient.objects.values('genero').annotate(total=Count('id')).order_by('-total')
+    gender_labels = [x['genero'] or 'Sin Registro' for x in gender_qs]
+    gender_values = [x['total'] for x in gender_qs]
+
+    # 2. EDAD (Calculado en Python para facilitar rangos)
+    # Traemos todas las edades y las agrupamos
+    edades = Patient.objects.values_list('edad', flat=True)
+    buckets = {'0-18': 0, '19-30': 0, '31-50': 0, '51-70': 0, '71+': 0, 'N/A': 0}
+    
+    for edad in edades:
+        if edad is None:
+            buckets['N/A'] += 1
+        elif edad <= 18:
+            buckets['0-18'] += 1
+        elif edad <= 30:
+            buckets['19-30'] += 1
+        elif edad <= 50:
+            buckets['31-50'] += 1
+        elif edad <= 70:
+            buckets['51-70'] += 1
+        else:
+            buckets['71+'] += 1
+            
+    age_labels = list(buckets.keys())
+    age_values = list(buckets.values())
+
+    # 3. PROCEDIMIENTOS (Reemplaza a Diagnóstico)
+    proc_qs = FollowUp.objects.values('tipo_procedimiento').annotate(total=Count('id')).order_by('-total')[:8]
+    diag_labels = [x['tipo_procedimiento'] for x in proc_qs]
+    diag_values = [x['total'] for x in proc_qs]
+
+    # 4. ESTADO SOLICITUD
+    status_qs = FollowUp.objects.values('estado_solicitud').annotate(total=Count('id'))
+    state_labels = [x['estado_solicitud'] for x in status_qs]
+    state_values = [x['total'] for x in status_qs]
+
+    # 5. COMPORTAMIENTO MENSUAL (Línea de tiempo)
+    # Agrupa por mes de la fecha de solicitud
+    monthly_qs = FollowUp.objects.annotate(
+        mes=TruncMonth('fecha_solicitud_cita')
+    ).values('mes').annotate(total=Count('id')).order_by('mes')
+
+    # Formateamos fecha "Ene 2024"
+    month_labels = [x['mes'].strftime('%b %Y') if x['mes'] else 'S/F' for x in monthly_qs]
+    count_values = [x['total'] for x in monthly_qs]
+
+    return {
+        'gender_labels': json.dumps(gender_labels),
+        'gender_values': json.dumps(gender_values),
+        'age_labels': json.dumps(age_labels),
+        'age_values': json.dumps(age_values),
+        'diag_labels': json.dumps(diag_labels),
+        'diag_values': json.dumps(diag_values),
+        'state_labels': json.dumps(state_labels),
+        'state_values': json.dumps(state_values),
+        'month_labels': json.dumps(month_labels),
+        'cnt_values': json.dumps(count_values),
+        # Reutilizamos las etiquetas de mes para oportunidad
+        'month_values': json.dumps([]) # Oportunidad compleja de calcular por mes, dejamos vacía por ahora
     }
