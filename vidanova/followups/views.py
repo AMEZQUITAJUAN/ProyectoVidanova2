@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.core.files.storage import FileSystemStorage
 from django.core.paginator import Paginator
 from django.contrib import messages
-from django.db.models import Q, F, ExpressionWrapper, fields
+from django.db.models import Q
 from django.http import HttpResponse
 
 from .models import FollowUp
@@ -14,8 +14,7 @@ from .services import (
     compute_request_status_from_db, 
     compute_opportunity_by_procedure,
     compute_barriers,
-    load_dashboard_dataframe, 
-    compute_institutional_metrics
+    compute_institutional_metrics_db
 )
 
 def followup_dashboard(request):
@@ -23,7 +22,7 @@ def followup_dashboard(request):
     Vista principal: Tablero de control + Listado con filtros y buscador.
     """
     # 1. Queryset Base (Optimizado)
-    queryset = FollowUp.objects.select_related('patient').all().order_by('-fecha_solicitud_cita')
+    queryset = FollowUp.objects.select_related('patient').all().order_by('-fecha_solicitud_cita', '-id')
 
     # 2. Captura de Filtros
     date_from = request.GET.get('date_from')
@@ -32,54 +31,75 @@ def followup_dashboard(request):
     procedure = request.GET.get('procedure')
     q_search = request.GET.get('q')
 
-    # 3. Aplicación de Filtros
-    if date_from: queryset = queryset.filter(fecha_solicitud_cita__gte=date_from)
-    if date_to: queryset = queryset.filter(fecha_solicitud_cita__lte=date_to)
-    if status: queryset = queryset.filter(estado_solicitud=status)
-    if procedure: queryset = queryset.filter(tipo_procedimiento=procedure)
+    # 3. Aplicación de Filtros (CORREGIDA 🔥)
+    if date_from: 
+        queryset = queryset.filter(fecha_solicitud_cita__gte=date_from)
+    if date_to: 
+        queryset = queryset.filter(fecha_solicitud_cita__lte=date_to)
     
-    # --- CORRECCIÓN DEL BUSCADOR (CÉDULA Y NOMBRE) ---
+    if status: 
+        # Usamos icontains por si acaso hay variaciones (Pendiente vs PENDIENTE)
+        queryset = queryset.filter(estado_solicitud__icontains=status)
+    
+    if procedure: 
+        # 🔥 AQUÍ ESTABA EL ERROR: Cambiamos exact match por __icontains
+        # Ahora "CONSULTA" encontrará "CONSULTA DE CONTROL..."
+        queryset = queryset.filter(tipo_procedimiento__icontains=procedure)
+    
+    # Buscador Global
     if q_search:
         queryset = queryset.filter(
-            Q(patient__numero_documento__icontains=q_search) |  # Cédula
-            Q(patient__nombre_1__icontains=q_search) |          # Nombre
-            Q(patient__apellido_1__icontains=q_search) |        # Apellido
-            Q(observaciones__icontains=q_search)                # Observaciones
+            Q(patient__numero_documento__icontains=q_search) |
+            Q(patient__nombre_1__icontains=q_search) |          
+            Q(patient__apellido_1__icontains=q_search) |       
+            Q(observaciones__icontains=q_search) |              
+            Q(cups__icontains=q_search)
         )
 
-    # 4. Cálculo de KPIs (sobre la data filtrada)
+    # 4. Cálculo de KPIs (Mantenemos igual)
     kpi_status = compute_request_status_from_db(queryset)
     kpi_procedure = compute_opportunity_by_procedure(queryset)
     kpi_barriers = compute_barriers(queryset)
 
     # Stats rápidas
-    realizados = queryset.filter(estado_solicitud='REALIZADO').exclude(fecha_cita__isnull=True, fecha_solicitud_cita__isnull=True)
-    dias_list = [r.dias_diff for r in realizados if r.dias_diff is not None]
+    realizados = queryset.filter(estado_solicitud__icontains='REALIZADO', fecha_cita__isnull=False, fecha_solicitud_cita__isnull=False)
+    
+    dias_list = []
+    for r in realizados:
+        if r.dias_diff is not None:
+            dias_list.append(r.dias_diff)
+            
     promedio = round(sum(dias_list) / len(dias_list), 1) if dias_list else 0
+
+    total_registros = queryset.count()
+    
+    # Cálculo seguro del porcentaje de pendientes (evitando división por cero)
+    pct_pendientes = 0
+    if total_registros > 0:
+        pct_pendientes = round((kpi_status['pendientes'] / total_registros) * 100, 1)
 
     stats = {
         'total': queryset.count(),
         'completados': kpi_status['completados'],
         'pendientes': kpi_status['pendientes'],
         'porcentaje_completado': kpi_status['porcentaje_completado'],
+        'porcentaje_pendientes': pct_pendientes,
         'promedio_dias': promedio
     }
 
-    # 5. Paginación con selector de filas por página
-    page_size = request.GET.get('page_size', '20')
+    # 5. PAGINACIÓN
+    per_page = request.GET.get('per_page', 25)
     try:
-        page_size = int(page_size)
-        if page_size not in [20, 50, 100]:
-            page_size = 20
+        per_page = int(per_page)
     except ValueError:
-        page_size = 20
+        per_page = 25
 
-    paginator = Paginator(queryset, page_size)
+    paginator = Paginator(queryset, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
     context = {
-        'page_size': page_size,
+        'per_page': per_page, 
         'page_obj': page_obj,
         'filtros': request.GET,
         'stats': stats,
@@ -91,13 +111,17 @@ def followup_dashboard(request):
         'barreras_values': kpi_barriers['values'],
     }
     return render(request, 'followups.html', context)
+    
+
+
 
 def exportar_excel(request):
     """
-    Exporta a Excel lo mismo que se ve en el dashboard (mismos filtros).
+    Exporta a Excel aplicando los mismos filtros de la vista.
     """
     queryset = FollowUp.objects.select_related('patient').all().order_by('-fecha_solicitud_cita')
     
+    # Filtros repetidos (idealmente extraer a una función helper, pero lo dejamos así por simplicidad)
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     status = request.GET.get('status')
@@ -109,7 +133,6 @@ def exportar_excel(request):
     if status: queryset = queryset.filter(estado_solicitud=status)
     if procedure: queryset = queryset.filter(tipo_procedimiento=procedure)
     
-    # --- MISMOS FILTROS DE BÚSQUEDA ---
     if q_search:
         queryset = queryset.filter(
             Q(patient__numero_documento__icontains=q_search) | 
@@ -123,7 +146,7 @@ def exportar_excel(request):
     for f in queryset:
         data.append({
             'Documento': f.patient.numero_documento,
-            'Paciente': f.patient.nombre, # Aquí usamos la propiedad del modelo
+            'Paciente': f.patient.nombre, # Aquí SÍ podemos usar la propiedad porque es Python, no SQL
             'Tipo Procedimiento': f.tipo_procedimiento,
             'Estado': f.estado_solicitud,
             'Barrera': f.barrera,
@@ -141,6 +164,8 @@ def exportar_excel(request):
     df.to_excel(response, index=False, engine='openpyxl')
     return response
 
+# --- VISTAS DE CARGA Y GESTIÓN (Sin cambios mayores) ---
+
 def importar_datos(request):
     if request.method == 'POST':
         form = UploadFileForm(request.POST, request.FILES)
@@ -150,9 +175,11 @@ def importar_datos(request):
             filename = fs.save(archivo.name, archivo)
             file_path = fs.path(filename)
             try:
+                # Usamos el servicio de services.py
                 resultado = importar_archivo_masivo(file_path)
+                
                 if resultado.get('success'):
-                    msg = f"Carga completada. {resultado.get('mensaje')} (Nuevos: {resultado.get('registros')})"
+                    msg = f"Carga completada. Nuevos: {resultado.get('registros')}, Actualizados: {resultado.get('actualizados')}"
                     messages.success(request, msg)
                 else:
                     messages.error(request, f"Error: {resultado.get('error')}")
@@ -168,9 +195,7 @@ def importar_datos(request):
 
 def editar_followup(request, pk):
     followup = get_object_or_404(FollowUp, pk=pk)
-    
     if request.method == 'POST':
-        # ... (lógica de guardado igual que antes) ...
         form = FollowUpForm(request.POST, instance=followup)
         if form.is_valid():
             form.save()
@@ -179,26 +204,20 @@ def editar_followup(request, pk):
     else:
         form = FollowUpForm(instance=followup)
     
-    # --- LÓGICA DE AUTOCOMPLETADO ---
-    # Obtenemos valores únicos de la BD para sugerir
-    servicios_existentes = FollowUp.objects.values_list('servicio', flat=True).distinct().order_by('servicio')
-    aseguradoras_existentes = FollowUp.objects.values_list('entidad_aseguradora', flat=True).distinct().order_by('entidad_aseguradora')
-
+    # Contexto para autocompletar en frontend si lo tuvieras
+    servicios_existentes = FollowUp.objects.values_list('servicio', flat=True).distinct()
+    
     return render(request, 'followup_form.html', {
         'form': form, 
         'title': 'Editar Seguimiento',
         'patient': followup.patient,
-        # Pasamos las listas al template
-        'servicios_list': servicios_existentes,
-        'aseguradoras_list': aseguradoras_existentes
+        'servicios_list': servicios_existentes
     })
 
 def agregar_followup(request, patient_id):
     from patients.models import Patient
     patient = get_object_or_404(Patient, pk=patient_id)
-    
     if request.method == 'POST':
-        # ... (lógica de guardado igual) ...
         form = FollowUpForm(request.POST)
         if form.is_valid():
             nuevo = form.save(commit=False)
@@ -209,16 +228,10 @@ def agregar_followup(request, patient_id):
     else:
         form = FollowUpForm(initial={'patient': patient})
 
-    # --- LÓGICA DE AUTOCOMPLETADO ---
-    servicios_existentes = FollowUp.objects.values_list('servicio', flat=True).distinct().order_by('servicio')
-    aseguradoras_existentes = FollowUp.objects.values_list('entidad_aseguradora', flat=True).distinct().order_by('entidad_aseguradora')
-
     return render(request, 'followup_form.html', {
         'form': form, 
         'title': 'Nuevo Seguimiento', 
-        'patient': patient,
-        'servicios_list': servicios_existentes,
-        'aseguradoras_list': aseguradoras_existentes
+        'patient': patient
     })
 
 def eliminar_followup(request, pk):
@@ -234,8 +247,7 @@ def followup_detail(request, pk):
     return render(request, 'followup_detail.html', {'followup': followup})
 
 def analisis_institucional(request):
-    df, path = load_dashboard_dataframe()
-    metrics = compute_institutional_metrics(df) if df is not None else {}
+    metrics = compute_institutional_metrics_db()
     return render(request, 'analisis_institucional.html', {'metrics': metrics})
 
 def ver_datos_siisa(request):

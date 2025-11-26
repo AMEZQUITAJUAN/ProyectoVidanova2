@@ -1,45 +1,109 @@
-{% extends "layout.html" %}
-{% block title %}Cargar datos SIISA{% endblock %}
+{% extends 'layout.html' %}
+{% load static %}
+
+{% block title %}Cargar Base de Datos - Vidanova{% endblock %}
 
 {% block content %}
-<div style="max-width: 700px; margin: 30px auto; padding: 20px; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-  <h2 style="color:#1f2937; text-align:center;">Cargar archivo Masivo (.xlsx o .csv)</h2>
-  <p style="text-align:center; color:#4b5563;">
-      Sube el archivo exportado. El sistema detectará automáticamente pacientes nuevos y <strong>omitirá duplicados</strong>.
-  </p>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            
+            <!-- TARJETA PRINCIPAL DE CARGA -->
+            <div class="card shadow-lg border-0 rounded-3">
+                <div class="card-header bg-primary text-white p-4 rounded-top-3">
+                    <h3 class="mb-0"><i class="fas fa-cloud-upload-alt me-2"></i> Carga Masiva de Pacientes</h3>
+                    <p class="mb-0 opacity-75 mt-1">Sube tu archivo Excel o CSV para actualizar el seguimiento.</p>
+                </div>
+                
+                <div class="card-body p-5">
+                    
+                    <!-- Mensajes de Error/Éxito -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show" role="alert">
+                                {% if message.tags == 'success' %}
+                                    <i class="fas fa-check-circle me-2"></i>
+                                {% else %}
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                {% endif %}
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
 
-  <!-- Bloque de Mensajes del Backend (Importante para ver el resultado) -->
-  {% if messages %}
-      {% for message in messages %}
-        <div style="padding:10px; border-radius:6px; margin-bottom:15px; 
-             {% if message.tags == 'success' %}background:#d1fae5; color:#065f46;
-             {% else %}background:#fee2e2; color:#b91c1c;{% endif %}">
-          {% if message.tags == 'success' %}✅{% else %}⚠️{% endif %} {{ message }}
+                    <!-- FORMULARIO -->
+                    <form method="post" enctype="multipart/form-data" class="text-center">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <div class="mb-3 text-primary opacity-50">
+                                <i class="fas fa-file-excel fa-5x"></i>
+                            </div>
+                            <label for="id_archivo" class="form-label fw-bold mb-3">Selecciona el archivo (.xlsx o .csv)</label>
+                            
+                            <!-- Input de Archivo Estilizado -->
+                            <input type="file" name="archivo" class="form-control form-control-lg" id="id_archivo" required accept=".xlsx, .xls, .csv">
+                            <div class="form-text mt-2 text-muted">
+                                El sistema detectará pacientes nuevos y evitará duplicados automáticamente.
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mt-5">
+                            <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary px-4 py-2">
+                                <i class="fas fa-arrow-left"></i> Volver al Tablero
+                            </a>
+                            <button type="submit" class="btn btn-primary px-5 py-2 fw-bold shadow-sm">
+                                <i class="fas fa-upload me-2"></i> Procesar Archivo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- GUÍA DE COLUMNAS ESPERADAS (AYUDA VISUAL) -->
+            <div class="card shadow-sm border-0 mt-4">
+                <div class="card-body p-4 bg-light rounded-3">
+                    <h5 class="text-primary mb-3"><i class="fas fa-info-circle"></i> Estructura del Excel</h5>
+                    <p class="small text-muted mb-3">
+                        Para asegurar una carga correcta, verifica que tu archivo contenga las siguientes columnas (el sistema es flexible con los nombres):
+                    </p>
+                    
+                    <div class="row g-3 small">
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush bg-transparent">
+                                <li class="list-group-item bg-transparent py-1 ps-0">
+                                    <i class="fas fa-check text-success me-2"></i> <strong>Identificación</strong> (Cédula)
+                                </li>
+                                <li class="list-group-item bg-transparent py-1 ps-0">
+                                    <i class="fas fa-check text-success me-2"></i> <strong>Nombre 1, Nombre 2...</strong> (O Nombre Completo)
+                                </li>
+                                <li class="list-group-item bg-transparent py-1 ps-0">
+                                    <i class="fas fa-check text-success me-2"></i> <strong>Fecha Solicitud</strong>
+                                </li>
+                                <li class="list-group-item bg-transparent py-1 ps-0">
+                                    <i class="fas fa-check text-success me-2"></i> <strong>Procedimiento</strong> (Servicio)
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush bg-transparent">
+                                <li class="list-group-item bg-transparent py-1 ps-0">
+                                    <i class="fas fa-check text-success me-2"></i> <strong>Estado</strong> (Pendiente, Realizado...)
+                                </li>
+                                <li class="list-group-item bg-transparent py-1 ps-0">
+                                    <i class="fas fa-check text-success me-2"></i> <strong>Fecha Cita</strong> (Si aplica)
+                                </li>
+                                <li class="list-group-item bg-transparent py-1 ps-0">
+                                    <i class="fas fa-check text-success me-2"></i> <strong>Barrera</strong> y <strong>Observaciones</strong>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
-      {% endfor %}
-  {% endif %}
-
-  <!-- Formulario conectado a Django Forms -->
-  <form method="post" enctype="multipart/form-data" style="text-align:center; margin-top: 20px;">
-    {% csrf_token %}
-    
-    <!-- Renderiza el campo de archivo definido en forms.py -->
-    <div style="margin-bottom: 20px;">
-        {{ form.as_p }}
     </div>
-
-    <button type="submit" class="btn"
-            style="background:#2563eb; color:white; padding:10px 20px; border:none; border-radius:6px; cursor:pointer; font-size: 16px;">
-      📤 Subir y procesar
-    </button>
-  </form>
-
-  <hr style="margin:25px 0;">
-
-  <div style="text-align:center;">
-    <a href="{% url 'followup_dashboard' %}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">
-        ← Volver al tablero administrativo
-    </a>
-  </div>
 </div>
 {% endblock %}

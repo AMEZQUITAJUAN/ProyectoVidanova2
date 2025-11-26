@@ -1,6 +1,7 @@
 # vidanova/followups/models.py
 from django.db import models
 from patients.models import Patient
+from datetime import date
 
 class FollowUp(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='seguimientos')
@@ -46,16 +47,35 @@ class FollowUp(models.Model):
 
     def __str__(self):
         return f"{self.patient} - {self.diagnostico or 'Sin diagnóstico'} ({self.fecha_atencion})"
+
     # --- CÁLCULO AUTOMÁTICO DE OPORTUNIDAD ---
-    # Pega esto justo antes de terminar la clase FollowUp
     @property
     def dias_diff(self):
         """
         Calcula la diferencia en días entre la solicitud y la cita.
-        Se usa en el Dashboard para la columna 'Días'.
         """
         if self.fecha_cita and self.fecha_solicitud_cita:
-            # Si ambas fechas existen, restamos
             delta = self.fecha_cita - self.fecha_solicitud_cita
             return delta.days
         return None
+    
+    @property
+    def dias_espera_actuales(self):
+        """Calcula cuántos días han pasado desde la solicitud hasta HOY (si sigue pendiente)"""
+        if self.fecha_solicitud_cita and not self.fecha_cita:
+            return (date.today() - self.fecha_solicitud_cita).days
+        return 0
+
+    @property
+    def es_alerta_roja(self):
+        """Devuelve True si está PENDIENTE y lleva más de 30 días"""
+        # Ajusta la lista de estados pendientes según tus reglas exactas
+        estados_pendientes = ['PENDIENTE', 'EN_GESTION', 'POR_GESTIONAR', 'NO_AUTORIZADO']
+        
+        # Comparamos asegurándonos que el estado no sea None
+        estado_actual = str(self.estado_solicitud).upper() if self.estado_solicitud else ''
+        
+        if estado_actual in estados_pendientes:
+            if self.dias_espera_actuales > 30:
+                return True
+        return False

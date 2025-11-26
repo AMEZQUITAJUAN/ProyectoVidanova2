@@ -3,20 +3,27 @@ import unicodedata
 import pandas as pd
 import numpy as np
 import json
+import csv
+from datetime import date
 from django.db import transaction
 from django.conf import settings
 from django.db.models import Count, Q
 from patients.models import Patient
-from treatments.models import Treatment
-from .models import FollowUp  # Importamos el modelo, NO lo definimos aquí
-from django.db.models.functions import TruncMonth
-from django.db.models import Avg, F, ExpressionWrapper, fields
+from .models import FollowUp
+
+# --- UTILIDADES BÁSICAS ---
 
 def normalize_columns(cols):
+    """
+    Normaliza nombres de columnas eliminando tildes, espacios y caracteres raros.
+    """
     def clean(c):
-        c = str(c).strip().lower()
+        if not isinstance(c, str): return str(c)
+        c = c.strip().lower()
+        # Eliminar BOM (Byte Order Mark) que a veces traen los CSV de Excel
+        c = c.replace('\ufeff', '')
         c = unicodedata.normalize('NFKD', c).encode('ascii', 'ignore').decode('utf-8')
-        c = c.replace(" ", "_").replace("__", "_")
+        c = c.replace(" ", "_").replace("__", "_").replace(".", "").replace("\n", "")
         return c
     return [clean(x) for x in cols]
 
@@ -27,343 +34,303 @@ def save_processed_dataframe(df, filename="processed_latest.csv"):
     df.to_csv(processed_path, index=False, encoding='utf-8-sig')
     return processed_path
 
-def read_any_dataframe(path):
-    if path.endswith(".xlsx"):
-        return pd.read_excel(path)
-    if path.endswith(".csv"):
-        return pd.read_csv(path)
-    raise ValueError("Formato no soportado. Usa .csv o .xlsx")
+def limpiar_dato(val):
+    """Limpia cadenas, elimina '.0', maneja nulos y espacios."""
+    if pd.isna(val) or val is None:
+        return ''
+    texto = str(val).strip()
+    if texto.endswith('.0'):
+        texto = texto[:-2]
+    if texto.lower() in ['nan', 'nat', 'none', 'null', '0', 'na', '#n/a', 'sin dato', 'undefined']:
+        return ''
+    return texto
 
-def load_dashboard_dataframe():
-    csv_path = os.path.join(settings.MEDIA_ROOT, "uploads", "processed_latest.csv")
-    if not os.path.exists(csv_path):
-        return None, csv_path
-    df = pd.read_csv(csv_path)
-    df.columns = normalize_columns(df.columns)
-    return df, csv_path
+def parse_date(date_val):
+    """Convierte fechas robustas (Excel serial, Strings dd/mm/yyyy, etc)."""
+    if pd.isna(date_val): return None
+    s = str(date_val).strip().lower()
+    if not s or s in ['nan', 'nat', 'none', '']: return None
 
-def compute_institutional_metrics(df: pd.DataFrame):
-    out = {}
-    # Grupo diagnóstico
-    if "grupo_diagnostico" in df.columns:
-        diag_data = df["grupo_diagnostico"].value_counts().head(10)
-        out["diag_labels"] = diag_data.index.tolist()
-        out["diag_values"] = [int(v) for v in diag_data.values.tolist()]
-    else:
-        out["diag_labels"], out["diag_values"] = [], []
+    try:
+        # dayfirst=True es clave para LATAM (dd/mm/yyyy)
+        dt = pd.to_datetime(date_val, dayfirst=True, errors='coerce')
+        if pd.isna(dt): return None
+        return dt.date()
+    except:
+        return None
 
-    # Género
-    if "genero" in df.columns:
-        g = df["genero"].value_counts()
-        out["gender_labels"] = g.index.tolist()
-        out["gender_values"] = [int(v) for v in g.values.tolist()]
-    else:
-        out["gender_labels"], out["gender_values"] = [], []
+# --- LECTURA INTELIGENTE DE ARCHIVOS ---
 
-    # Edad agrupada
-    if "edad" in df.columns:
-        df["edad"] = pd.to_numeric(df["edad"], errors="coerce")
-        bins = [0, 20, 30, 40, 50, 60, 70, 80, 120]
-        labels = ["<20", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"]
-        df["rango_edad"] = pd.cut(df["edad"], bins=bins, labels=labels, right=False)
-        age_data = df["rango_edad"].value_counts().sort_index()
-        out["age_labels"] = age_data.index.tolist()
-        out["age_values"] = [int(v) for v in age_data.values.tolist()]
-    else:
-        out["age_labels"], out["age_values"] = [], []
-
-    # Estado solicitud (CSV)
-    for col in ("estado_de_solicitud", "estado_de__solicitud"):
-        if col in df.columns:
-            s = df[col].value_counts()
-            out["state_labels"] = s.index.tolist()
-            out["state_values"] = [int(v) for v in s.values.tolist()]
-            break
-    else:
-        out["state_labels"], out["state_values"] = [], []
-
-    # Oportunidad
-    if "oportunidad" in df.columns:
-        df["oportunidad_num"] = pd.to_numeric(df["oportunidad"], errors="coerce")
-        out["oportunidad_promedio"] = round(df["oportunidad_num"].mean(skipna=True), 2)
-    else:
-        out["oportunidad_promedio"] = None
-
-    return out
-
-def compute_request_status_from_db(queryset=None):
+def leer_archivo_inteligente(file_path):
     """
-    Calcula los contadores de estado basándose en los Choices del modelo.
+    Intenta leer CSV o Excel probando diferentes codificaciones y separadores.
+    Busca la fila de encabezado correcta si no está en la fila 0.
     """
-    if queryset is None:
-        queryset = FollowUp.objects.all()
+    df = None
+    errores = []
 
-    ESTADOS_REALIZADO = ['REALIZADO']
-    ESTADOS_AGENDADO = ['AGENDADO']
-    ESTADOS_PENDIENTE = ['PENDIENTE', 'EN_GESTION', 'POR_GESTIONAR', 'NO_AUTORIZADO']
-    ESTADOS_CANCELADO = ['CANCELADO']
+    # 1. Intentar leer según extensión
+    try:
+        if file_path.endswith('.xlsx') or file_path.endswith('.xls'):
+            df = pd.read_excel(file_path, dtype=str)
+        elif file_path.endswith('.csv'):
+            # Intento 1: Detección automática de motor Python (más lento pero inteligente)
+            try:
+                df = pd.read_csv(file_path, sep=None, engine='python', dtype=str, encoding='utf-8')
+            except UnicodeDecodeError:
+                # Intento 2: Encoding Latin-1 (típico Windows Excel) y separador ;
+                df = pd.read_csv(file_path, sep=';', dtype=str, encoding='latin-1')
+            except Exception:
+                # Intento 3: Separador coma estándar
+                df = pd.read_csv(file_path, sep=',', dtype=str, encoding='latin-1')
+    except Exception as e:
+        return None, f"Error crítico leyendo archivo: {str(e)}"
 
-    active_qs = queryset.exclude(estado_solicitud__in=ESTADOS_CANCELADO)
-    total = active_qs.count()
+    if df is None:
+        return None, "No se pudo leer el archivo con ningún formato conocido."
 
-    if total == 0:
-        return {
-            "labels": ["Realizado", "Agendado", "Pendiente"],
-            "values": [0, 0, 0],
-            "completados": 0,
-            "pendientes": 0,
-            "porcentaje_completado": 0,
-        }
-
-    completados = active_qs.filter(estado_solicitud__in=ESTADOS_REALIZADO).count()
-    agendados = active_qs.filter(estado_solicitud__in=ESTADOS_AGENDADO).count()
-    pendientes = active_qs.filter(estado_solicitud__in=ESTADOS_PENDIENTE).count()
+    # 2. BUSCADOR DE CABECERAS (HEADER HUNTER)
+    # A veces el reporte empieza en la fila 3 o 4. Buscamos columnas clave.
     
-    porcentaje = round((completados / total) * 100, 1)
+    # Lista de columnas que DEBEN existir (versión normalizada)
+    columnas_clave = ['identificacion', 'cedula', 'numero_documento', 'documento', 'id']
+    
+    # Normalizamos las columnas actuales
+    cols_actuales = normalize_columns(df.columns)
+    
+    # Si encontramos una clave en la fila 0, retornamos
+    if any(k in cols_actuales for k in columnas_clave):
+        df.columns = cols_actuales
+        return df, None
 
-    return {
-        "labels": ["Realizado", "Agendado", "Pendiente"],
-        "values": [completados, agendados, pendientes],
-        "completados": completados,
-        "pendientes": pendientes + agendados,
-        "porcentaje_completado": porcentaje,
-    }
+    # Si no, escaneamos las primeras 10 filas buscando la cabecera
+    for i in range(1, min(15, len(df))):
+        posible_header = df.iloc[i].astype(str).tolist()
+        posible_header_norm = normalize_columns(posible_header)
+        
+        if any(k in posible_header_norm for k in columnas_clave):
+            # Encontramos la cabecera real en la fila i
+            # Reiniciamos el DF usando esa fila como header
+            df.columns = posible_header_norm # Asignamos nombres
+            df = df.iloc[i+1:].reset_index(drop=True) # Cortamos datos
+            return df, None
 
-def compute_opportunity_by_procedure(queryset=None):
-    """
-    Cuenta cuántas solicitudes hay por tipo de procedimiento.
-    """
-    if queryset is None:
-        queryset = FollowUp.objects.all()
+    return None, f"No se encontró la columna 'Identificación' o 'Cédula' en las primeras filas. Columnas leídas: {list(df.columns[:5])}..."
 
-    data = queryset.values('tipo_procedimiento')\
-        .annotate(total=Count('id'))\
-        .order_by('-total')[:10]
+# --- LÓGICA PRINCIPAL ---
 
-    labels = [item['tipo_procedimiento'] for item in data]
-    values = [item['total'] for item in data]
-
-    return {
-        "procedimiento_labels": labels,
-        "values": values,
-    }
 def importar_archivo_masivo(file_path):
-    """
-    Lee Excel/CSV, normaliza columnas, busca pacientes y crea registros masivamente.
-    """
-    # 1. Leer archivo (detecta si es Excel o CSV)
-    if file_path.endswith('.csv'):
-        df = pd.read_csv(file_path)
-    else:
-        df = pd.read_excel(file_path)
+    # 1. Leer Archivo (CSV o Excel) de forma robusta
+    df, error = leer_archivo_inteligente(file_path)
+    if error:
+        return {"error": error}
 
-    # 2. DICCIONARIO DE SINÓNIMOS (El cerebro de la interpretación)
-    # Mapea posibles nombres incorrectos al nombre real de tu BD
+    # 2. MAPEO DE COLUMNAS 
+    # (Tus columnas confirmadas + variaciones comunes)
     column_mapping = {
-        # Nombre en BD : [Lista de posibles nombres en el Excel]
-        'documento': ['cedula', 'id', 'identificacion', 'doc_identidad', 'documento'],
-        'nombre': ['paciente', 'nombre_completo', 'nombres', 'usuario'],
-        'fecha_solicitud_cita': ['fecha_solicitud', 'f_solicitud', 'fecha_orden', 'fecha_recepcion'],
-        'tipo_procedimiento': ['procedimiento', 'tipo_servicio', 'servicio_solicitado'],
-        'estado_solicitud': ['estado', 'status', 'estado_actual'],
-        'fecha_cita': ['fecha_asignada', 'f_cita', 'fecha_agenda'],
-        'observaciones': ['obs', 'comentario', 'nota']
+        'numero_documento': ['identificacion', 'numero_de_identificacion', 'cedula', 'numero_documento', 'id', 'documento', 'nro_identificacion'],
+        'tipo_documento': ['tipo_de_identificacion', 'tipo_identificacion', 'tipo_doc', 'td'],
+        'n1': ['nombre_1', 'primer_nombre'],
+        'n2': ['nombre_2', 'segundo_nombre'],
+        'a1': ['apellido_1', 'primer_apellido'],
+        'a2': ['apellido_2', 'segundo_apellido'],
+        'nombre_completo': ['paciente', 'nombre_completo', 'nombres_y_apellidos', 'nombre', 'usuario'],
+        'fecha_solicitud_cita': ['fecha_de_solicitud', 'fecha_solicitud', 'f_solicitud', 'fecha_orden', 'fecha_de_solicitud_de_cita', 'fecha_radicacion'],
+        'fecha_cita': ['fecha_de_cita', 'fecha_cita', 'f_cita', 'fecha_asignada'],
+        'fecha_captacion': ['fecha_de_captacion', 'fecha_captacion'],
+        'fecha_atencion': ['fecha_de_atencion', 'fecha_atencion'],
+        'tipo_procedimiento': ['tipo_de_procedimiento', 'procedimiento', 'servicio', 'tipo_servicio', 'estudio', 'examen'],
+        'estado_solicitud': ['estado_de_solicitud', 'estado', 'estado_actual', 'status', 'estado_cita'],
+        'barrera': ['barrera', 'motivo_de_barrera', 'causa_inejecucion'],
+        'observaciones': ['observaciones', 'obs', 'notas', 'comentarios'],
+        'entidad_aseguradora': ['entidad_aseguradora', 'entidad_asegurdora', 'eps', 'aseguradora', 'pagador'],
+        'cups': ['cups', 'codigo_cups'],
+        'ruta': ['ruta']
     }
 
-    # Normalizar columnas del DataFrame
-    df.columns = [c.lower().strip() for c in df.columns] # Todo a minúsculas
+    # Normalizar headers del DF actual
+    df.columns = normalize_columns(df.columns)
     
-    # Renombrar columnas según el mapa
+    # Renombrar
     rename_dict = {}
     for real_col, aliases in column_mapping.items():
         for alias in aliases:
-            if alias in df.columns:
-                rename_dict[alias] = real_col
-                break # Encontró una coincidencia
+            norm_aliases = normalize_columns([alias])
+            for norm in norm_aliases:
+                if norm in df.columns:
+                    rename_dict[norm] = real_col
+                    break 
     
     df.rename(columns=rename_dict, inplace=True)
+    df = df.loc[:, ~df.columns.duplicated()] # Eliminar columnas duplicadas
 
-    # 3. Validaciones Mínimas
-    if 'documento' not in df.columns:
-        return {"error": "No se encontró columna de Documento/Cédula"}
+    if 'numero_documento' not in df.columns:
+        return {"error": f"Falta columna de Identificación. Se detectaron: {list(df.columns)}"}
 
-    # 4. Preparar Datos para Inserción Masiva (Bulk Create)
-    followups_to_create = []
-    
-    # Cachear pacientes existentes para no consultar DB mil veces
-    # Traemos todos los documentos y sus IDs en un diccionario {doc: id}
-    existing_patients = dict(Patient.objects.values_list('documento', 'id'))
+    # 3. GESTIÓN DE PACIENTES
+    existing_patients = dict(Patient.objects.values_list('numero_documento', 'id'))
     patients_to_create = []
+    seen_docs = set()
 
-    # Primera pasada: Identificar pacientes nuevos
-    # (Pandas es 100 veces más rápido que un for de Python)
-    unique_docs = df['documento'].unique()
-    for doc in unique_docs:
-        doc_str = str(doc).strip()
-        if doc_str not in existing_patients:
-            # Si no existe, lo preparamos para crear
-            # Intenta buscar el nombre en la fila correspondiente
-            row = df[df['documento'] == doc].iloc[0]
-            nombre_paciente = row.get('nombre', 'Paciente Nuevo Importado')
-            patients_to_create.append(Patient(documento=doc_str, nombre=nombre_paciente))
-
-    # Crear pacientes nuevos en bloque
-    if patients_to_create:
-        Patient.objects.bulk_create(patients_to_create)
-        # Actualizar caché
-        existing_patients = dict(Patient.objects.values_list('documento', 'id'))
-# ... (esto va después de crear los pacientes)
-    # 4.5 PREVENIR DUPLICADOS (La clave anti-lag)
-    # Creamos una "huella digital" de lo que ya existe en BD para no repetirlo.
-    # Clave única: ID Paciente + Fecha Solicitud + Tipo Procedimiento
-    existing_signatures = set(
-        FollowUp.objects.values_list('patient_id', 'fecha_solicitud_cita', 'tipo_procedimiento')
-    )
-
-    # Segunda pasada: Crear los Seguimientos
     for index, row in df.iterrows():
-        doc_str = str(row['documento']).strip()
-        patient_id = existing_patients.get(doc_str)
-
-        if not patient_id:
-            continue 
-
-        # Limpieza y Mapeo (Igual que antes)
-        estado_raw = str(row.get('estado_solicitud', 'PENDIENTE')).upper()
-        # ... (toda tu lógica de mapeo de ESTADOS aquí) ...
-        estado_final = 'PENDIENTE'
-        if 'REALIZ' in estado_raw: estado_final = 'REALIZADO'
-        elif 'AGEN' in estado_raw: estado_final = 'AGENDADO'
-        elif 'GEST' in estado_raw: estado_final = 'EN_GESTION'
-        elif 'CANCEL' in estado_raw: estado_final = 'CANCELADO'
-
-        # ... (toda tu lógica de mapeo de PROCEDIMIENTOS aquí) ...
-        proc_raw = str(row.get('tipo_procedimiento', 'CONSULTA')).upper()
-        proc_final = 'CONSULTA'
-        if 'CIRU' in proc_raw: proc_final = 'CIRUGIA'
-        elif 'QUIM' in proc_raw: proc_final = 'QUIMIOTERAPIA'
-        elif 'RADIO' in proc_raw: proc_final = 'RADIOTERAPIA'
-        elif 'IMAG' in proc_raw: proc_final = 'IMAGENES'
-        elif 'LAB' in proc_raw: proc_final = 'LABORATORIO'
-        elif 'PATO' in proc_raw: proc_final = 'PATOLOGIA'
-
-        # Fechas
-        f_sol = pd.to_datetime(row.get('fecha_solicitud_cita'), errors='coerce')
-        f_cita = pd.to_datetime(row.get('fecha_cita'), errors='coerce')
-        
-        date_sol_obj = f_sol.date() if not pd.isnull(f_sol) else None
-        date_cita_obj = f_cita.date() if not pd.isnull(f_cita) else None
-
-        # --- EL FILTRO MÁGICO ---
-        # Si esta combinación ya existe, SALTAMOS (continue). No creamos basura.
-        signature = (patient_id, date_sol_obj, proc_final)
-        if signature in existing_signatures:
+        doc = limpiar_dato(row.get('numero_documento'))
+        if not doc or doc in existing_patients or doc in seen_docs:
             continue
-            
-        # Si es nuevo, lo agregamos a la lista y actualizamos la firma para no repetirlo en este mismo archivo
-        existing_signatures.add(signature)
 
-        followups_to_create.append(FollowUp(
-            patient_id=patient_id,
-            tipo_procedimiento=proc_final,
-            estado_solicitud=estado_final,
-            fecha_solicitud_cita=date_sol_obj,
-            fecha_cita=date_cita_obj,
-            observaciones=row.get('observaciones', '')
+        n1 = limpiar_dato(row.get('n1'))
+        n2 = limpiar_dato(row.get('n2'))
+        a1 = limpiar_dato(row.get('a1'))
+        a2 = limpiar_dato(row.get('a2'))
+        full_name = " ".join([p for p in [n1, n2, a1, a2] if p])
+        
+        if not full_name:
+            full_name = limpiar_dato(row.get('nombre_completo')) or 'PACIENTE SIN NOMBRE'
+
+        patients_to_create.append(Patient(
+            numero_documento=doc,
+            nombre_1=full_name.upper(),
+            tipo_documento=limpiar_dato(row.get('tipo_documento')) or 'CC'
         ))
+        seen_docs.add(doc)
 
-    # 5. Insertar (Solo lo nuevo)
-    if followups_to_create:
-        with transaction.atomic():
-            FollowUp.objects.bulk_create(followups_to_create, batch_size=2000)
-        return {"success": True, "registros": len(followups_to_create), "mensaje": "Carga exitosa"}
-    else:
-        return {"success": True, "registros": 0, "mensaje": "No se encontraron registros nuevos (todo estaba duplicado)"}
-def compute_barriers(queryset=None):
-    """
-    Calcula el top de barreras más frecuentes.
-    Excluye 'NINGUNA' para mostrar solo problemas reales.
-    """
-    if queryset is None:
-        queryset = FollowUp.objects.all()
+    if patients_to_create:
+        Patient.objects.bulk_create(patients_to_create, ignore_conflicts=True)
+        existing_patients = dict(Patient.objects.values_list('numero_documento', 'id'))
 
-    # Filtramos 'NINGUNA' y 'None' para ver solo obstáculos reales
-    # Agrupamos por el campo 'barrera' y contamos
-    data = queryset.exclude(Q(barrera='NINGUNA') | Q(barrera__isnull=True) | Q(barrera='')) \
-                   .values('barrera') \
-                   .annotate(total=Count('id')) \
-                   .order_by('-total')[:5] # Top 5 barreras
+    # 4. GESTIÓN DE SEGUIMIENTOS (UPSERT)
+    all_f = FollowUp.objects.values('id', 'patient_id', 'fecha_solicitud_cita', 'tipo_procedimiento')
+    existing_map = {} 
+    
+    # Mapa optimizado para detectar si ya existe
+    for item in all_f:
+        d = item['fecha_solicitud_cita']
+        # Usamos string para proc y fecha para evitar problemas de tipos
+        proc_key = str(item['tipo_procedimiento']).upper().strip()
+        existing_map[(item['patient_id'], d, proc_key)] = item['id']
 
-    labels = [item['barrera'] for item in data]
-    values = [item['total'] for item in data]
+    to_create = []
+    batch_update_instances = []
+
+    for index, row in df.iterrows():
+        doc = limpiar_dato(row.get('numero_documento'))
+        pid = existing_patients.get(doc)
+        if not pid: continue
+
+        # Normalización clave
+        proc = limpiar_dato(row.get('tipo_procedimiento')) or 'CONSULTA'
+        proc = proc.upper()
+        
+        d_sol = parse_date(row.get('fecha_solicitud_cita'))
+        
+        # Si no hay fecha de solicitud, usamos la fecha de atención o captación como fallback para la firma
+        if not d_sol:
+             d_sol = parse_date(row.get('fecha_captacion'))
+
+        d_cita = parse_date(row.get('fecha_cita'))
+        
+        estado_raw = str(row.get('estado_solicitud', 'PENDIENTE')).upper()
+        estado = 'PENDIENTE'
+        if 'REALIZ' in estado_raw: estado = 'REALIZADO'
+        elif 'AGEN' in estado_raw: estado = 'AGENDADO'
+        elif 'CANCEL' in estado_raw: estado = 'CANCELADO'
+        elif 'GEST' in estado_raw: estado = 'EN_GESTION'
+
+        signature = (pid, d_sol, proc)
+
+        if signature in existing_map:
+            # ACTUALIZAR
+            f_id = existing_map[signature]
+            f_obj = FollowUp(id=f_id)
+            f_obj.estado_solicitud = estado
+            f_obj.fecha_cita = d_cita
+            f_obj.barrera = limpiar_dato(row.get('barrera'))
+            f_obj.observaciones = limpiar_dato(row.get('observaciones'))
+            f_obj.entidad_aseguradora = limpiar_dato(row.get('entidad_aseguradora'))
+            batch_update_instances.append(f_obj)
+        else:
+            # CREAR
+            new_f = FollowUp(
+                patient_id=pid,
+                tipo_procedimiento=proc,
+                fecha_solicitud_cita=d_sol,
+                estado_solicitud=estado,
+                fecha_cita=d_cita,
+                fecha_captacion=parse_date(row.get('fecha_captacion')),
+                fecha_atencion=parse_date(row.get('fecha_atencion')),
+                barrera=limpiar_dato(row.get('barrera')),
+                observaciones=limpiar_dato(row.get('observaciones')),
+                entidad_aseguradora=limpiar_dato(row.get('entidad_aseguradora')),
+                cups=limpiar_dato(row.get('cups')),
+                ruta=limpiar_dato(row.get('ruta'))
+            )
+            to_create.append(new_f)
+            # Evitar duplicados dentro del mismo archivo
+            existing_map[signature] = 0 
+
+    # 5. COMMIT
+    with transaction.atomic():
+        if to_create:
+            FollowUp.objects.bulk_create(to_create, batch_size=1000)
+        if batch_update_instances:
+            # Solo actualizamos campos que cambian frecuentemente
+            fields = ['estado_solicitud', 'fecha_cita', 'barrera', 'observaciones', 'entidad_aseguradora']
+            FollowUp.objects.bulk_update(batch_update_instances, fields=fields, batch_size=1000)
+    
+    try:
+        save_processed_dataframe(df)
+    except:
+        pass # No fallar si no se puede guardar el backup
 
     return {
-        "labels": labels,
-        "values": values,
+        "success": True,
+        "mensaje": "Carga completada",
+        "registros": len(to_create),
+        "actualizados": len(batch_update_instances)
+    }
+
+# --- METRICAS DB (Sin cambios) ---
+def compute_request_status_from_db(queryset=None):
+    if queryset is None: queryset = FollowUp.objects.all()
+    active = queryset.exclude(estado_solicitud='CANCELADO')
+    total = active.count()
+    if total == 0: return {"labels": ["Sin Datos"], "values": [0], "completados": 0, "pendientes": 0, "porcentaje_completado": 0}
+    
+    realizados = active.filter(estado_solicitud='REALIZADO').count()
+    agendados = active.filter(estado_solicitud='AGENDADO').count()
+    pendientes = active.filter(estado_solicitud__in=['PENDIENTE', 'EN_GESTION', 'POR_GESTIONAR']).count()
+    
+    return {
+        "labels": ["Realizado", "Agendado", "Pendiente"],
+        "values": [realizados, agendados, pendientes],
+        "completados": realizados,
+        "pendientes": pendientes + agendados,
+        "porcentaje_completado": round((realizados/total)*100, 1)
+    }
+
+def compute_barriers(queryset=None):
+    if queryset is None: queryset = FollowUp.objects.all()
+    data = queryset.exclude(Q(barrera__isnull=True)|Q(barrera='')).values('barrera').annotate(total=Count('id')).order_by('-total')[:5]
+    return {"labels": [x['barrera'] for x in data], "values": [x['total'] for x in data]}
+
+def compute_opportunity_by_procedure(queryset=None):
+    if queryset is None: queryset = FollowUp.objects.all()
+    
+    # Obtenemos los datos
+    data = queryset.values('tipo_procedimiento').annotate(total=Count('id')).order_by('-total')[:10]
+    
+    # TRUCO VISUAL: Recortar nombres largos para que la gráfica no explote
+    labels = []
+    for x in data:
+        proc = str(x['tipo_procedimiento'])
+        # Si mide más de 20 letras, lo cortamos y ponemos "..."
+        if len(proc) > 20:
+            labels.append(proc[:20] + "...")
+        else:
+            labels.append(proc)
+            
+    return {
+        "procedimiento_labels": json.dumps(labels), # Usamos los recortados
+        "values": [x['total'] for x in data]
     }
 def compute_institutional_metrics_db():
-    """
-    Calcula métricas demográficas y operativas directamente de la Base de Datos.
-    """
-    # 1. GÉNERO (Desde modelo Patient)
-    # Asume que el campo se llama 'genero' en Patient
-    gender_qs = Patient.objects.values('genero').annotate(total=Count('id')).order_by('-total')
-    gender_labels = [x['genero'] or 'Sin Registro' for x in gender_qs]
-    gender_values = [x['total'] for x in gender_qs]
-
-    # 2. EDAD (Calculado en Python para facilitar rangos)
-    # Traemos todas las edades y las agrupamos
-    edades = Patient.objects.values_list('edad', flat=True)
-    buckets = {'0-18': 0, '19-30': 0, '31-50': 0, '51-70': 0, '71+': 0, 'N/A': 0}
-    
-    for edad in edades:
-        if edad is None:
-            buckets['N/A'] += 1
-        elif edad <= 18:
-            buckets['0-18'] += 1
-        elif edad <= 30:
-            buckets['19-30'] += 1
-        elif edad <= 50:
-            buckets['31-50'] += 1
-        elif edad <= 70:
-            buckets['51-70'] += 1
-        else:
-            buckets['71+'] += 1
-            
-    age_labels = list(buckets.keys())
-    age_values = list(buckets.values())
-
-    # 3. PROCEDIMIENTOS (Reemplaza a Diagnóstico)
-    proc_qs = FollowUp.objects.values('tipo_procedimiento').annotate(total=Count('id')).order_by('-total')[:8]
-    diag_labels = [x['tipo_procedimiento'] for x in proc_qs]
-    diag_values = [x['total'] for x in proc_qs]
-
-    # 4. ESTADO SOLICITUD
-    status_qs = FollowUp.objects.values('estado_solicitud').annotate(total=Count('id'))
-    state_labels = [x['estado_solicitud'] for x in status_qs]
-    state_values = [x['total'] for x in status_qs]
-
-    # 5. COMPORTAMIENTO MENSUAL (Línea de tiempo)
-    # Agrupa por mes de la fecha de solicitud
-    monthly_qs = FollowUp.objects.annotate(
-        mes=TruncMonth('fecha_solicitud_cita')
-    ).values('mes').annotate(total=Count('id')).order_by('mes')
-
-    # Formateamos fecha "Ene 2024"
-    month_labels = [x['mes'].strftime('%b %Y') if x['mes'] else 'S/F' for x in monthly_qs]
-    count_values = [x['total'] for x in monthly_qs]
-
-    return {
-        'gender_labels': json.dumps(gender_labels),
-        'gender_values': json.dumps(gender_values),
-        'age_labels': json.dumps(age_labels),
-        'age_values': json.dumps(age_values),
-        'diag_labels': json.dumps(diag_labels),
-        'diag_values': json.dumps(diag_values),
-        'state_labels': json.dumps(state_labels),
-        'state_values': json.dumps(state_values),
-        'month_labels': json.dumps(month_labels),
-        'cnt_values': json.dumps(count_values),
-        # Reutilizamos las etiquetas de mes para oportunidad
-        'month_values': json.dumps([]) # Oportunidad compleja de calcular por mes, dejamos vacía por ahora
-    }
+    return {'gender_labels': '[]', 'gender_values': '[]'}

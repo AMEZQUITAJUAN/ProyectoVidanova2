@@ -1,424 +1,402 @@
 {% extends 'layout.html' %}
 {% load static %}
+{% load followups_extras %} <!-- VITAL PARA PAGINACIÓN -->
 
-{% block title %}{% endblock %}
+{% block title %}Tablero Administrativo - Vidanova{% endblock %}
 
 {% block content %}
     <link href="{% static 'css/adminboard.css' %}" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
-        /* Estilos básicos para demostración - tu CSS personalizado irá aquí */
+        /* Estilos generales */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         .section { margin-bottom: 30px; }
         .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
-        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
-        .btn.primary { background: #3b82f6; color: white; }
-        .btn.secondary { background: #6b7280; color: white; }
-        .alert { padding: 12px; border-radius: 8px; margin: 8px 0; }
-        .alert.critical { background: #fef2f2; border-left: 4px solid #ef4444; color: #dc2626; }
-        .alert.warning { background: #fffbeb; border-left: 4px solid #f59e0b; color: #d97706; }
-        .alert.success { background: #f0fdf4; border-left: 4px solid #22c55e; color: #16a34a; }
-        .alert.info { background: #eff6ff; border-left: 4px solid #3b82f6; color: #2563eb; }
+        
+        /* --- ARREGLO DE TABLA --- */
+        .table-responsive { overflow-x: auto; }
+        
+        /* Anchos fijos para columnas que no deben crecer infinitamente */
+        .mw-paciente { width: 20%; min-width: 200px; }
+        .mw-procedimiento { width: 25%; max-width: 300px; } /* Aquí está la magia */
+        .mw-estado { width: 12%; min-width: 120px; }
+        .mw-fechas { width: 12%; min-width: 110px; }
+        .mw-tiempos { width: 10%; min-width: 100px; }
+        .mw-obs { width: 15%; max-width: 200px; }
+        .mw-acciones { width: 6%; min-width: 80px; }
+
+        /* Truncamiento de texto */
+        .text-truncate-box {
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            display: block;
+            width: 100%;
+        }
+
+        .table-danger { background-color: #fff5f5 !important; }
+        .border-danger { border-color: #dc2626 !important; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
+        
+        <!-- HEADER (Estilo Original Recuperado) -->
         <header class="section">
-            <div class="card">
-                <h1><i class="fas fa-chart-line"></i> Tablero Administrativo</h1>
-                <!-- Ponlo al lado del botón de Cargar Datos o en el encabezado -->
-<div class="d-flex gap-2 flex-wrap">
-    <!-- Botón Cargar -->
-    <a href="{% url 'cargar_datos' %}" class="btn btn-primary">
-        <i class="fas fa-cloud-upload-alt"></i> Cargar Datos
-    </a>
-    
-    <!-- Botón Exportar -->
-    <a href="{% url 'exportar_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">
-        <i class="fas fa-file-excel"></i> Exportar
-    </a>
-
-    <!-- NUEVO: Botón Análisis -->
-    <a href="{% url 'analisis_institucional' %}" class="btn btn-info text-white">
-        <i class="fas fa-chart-pie"></i> Ver Análisis
-    </a>
-</div>
+            <div class="card d-flex flex-row justify-content-between align-items-center flex-wrap">
+                <h1 style="font-size: 1.5rem; color: #1f2937; margin: 0;"><i class="fas fa-chart-line"></i> Tablero Administrativo</h1>
+                
+                <div class="d-flex gap-2 mt-2 mt-md-0">
+                    <a href="{% url 'cargar_datos' %}" class="btn btn-primary">
+                        <i class="fas fa-cloud-upload-alt"></i> Cargar Datos
+                    </a>
+                    <a href="{% url 'exportar_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+                        <i class="fas fa-file-excel"></i> Exportar
+                    </a>
+                    <a href="{% url 'analisis_institucional' %}" class="btn btn-info text-white">
+                        <i class="fas fa-chart-pie"></i> Ver Análisis
+                    </a>
+                </div>
             </div>
         </header>
 
-        <!-- Filtros -->
+        <!-- FILTROS -->
         <section class="section">
-    <div class="card shadow-sm">
-        <div class="card-header bg-white border-bottom-0 pb-0">
-            <h5 class="text-primary fw-bold"><i class="fas fa-filter"></i> Búsqueda y Filtros</h5>
-        </div>
-        
-        <div class="card-body">
-            <!-- INICIO DEL FORMULARIO ÚNICO -->
-            <!-- Al envolver todo, el buscador y los select viajan juntos al servidor -->
-            <form class="filters" method="GET" action="{% url 'followup_dashboard' %}">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom-0 pb-0">
+                    <h5 class="text-primary fw-bold"><i class="fas fa-filter"></i> Búsqueda y Filtros</h5>
+                </div>
                 
-                <!-- 1. BARRA DE BÚSQUEDA (Principal) -->
-                <div class="row mb-4">
-                    <div class="col-md-12">
-                        <div class="input-group input-group-lg">
-                            <span class="input-group-text bg-light border-end-0">
-                                <i class="bx bx-search text-muted"></i>
-                            </span>
-                            <input type="text" 
-                                   name="q" 
-                                   class="form-control border-start-0 bg-light" 
-                                   placeholder="Buscar por: Cédula, Nombre del Paciente o Palabras clave en observaciones..." 
-                                   value="{{ filtros.q|default:'' }}" 
-                                   aria-label="Buscar">
+                <div class="card-body">
+                    <form class="filters" method="GET" action="{% url 'followup_dashboard' %}">
+                        <!-- Mantenemos per_page oculto -->
+                        <input type="hidden" name="per_page" value="{{ per_page }}">
+
+                        <!-- Buscador -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                    <input type="text" name="q" class="form-control border-start-0 bg-light" 
+                                           placeholder="Buscar por cédula, nombre o apellido..." value="{{ filtros.q|default:'' }}">
+                                </div>
+                            </div>
                         </div>
-                    </div>
+
+                        <!-- Selectores -->
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small text-muted">Desde</label>
+                                <input type="date" name="date_from" class="form-control" value="{{ filtros.date_from }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small text-muted">Hasta</label>
+                                <input type="date" name="date_to" class="form-control" value="{{ filtros.date_to }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small text-muted">Estado</label>
+                                <select name="status" class="form-select">
+                                    <option value="" {% if not filtros.status %}selected{% endif %}>Todos</option>
+                                    <option value="PENDIENTE" {% if filtros.status == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+                                    <option value="EN_GESTION" {% if filtros.status == 'EN_GESTION' %}selected{% endif %}>En Gestión</option>
+                                    <option value="AGENDADO" {% if filtros.status == 'AGENDADO' %}selected{% endif %}>Agendado</option>
+                                    <option value="REALIZADO" {% if filtros.status == 'REALIZADO' %}selected{% endif %}>Realizado</option>
+                                    <option value="CANCELADO" {% if filtros.status == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small text-muted">Procedimiento</label>
+                                <select name="procedure" class="form-select">
+                                    <option value="" {% if not filtros.procedure %}selected{% endif %}>Todos</option>
+                                    <option value="CONSULTA" {% if filtros.procedure == 'CONSULTA' %}selected{% endif %}>Consulta</option>
+                                    <option value="QUIMIOTERAPIA" {% if filtros.procedure == 'QUIMIOTERAPIA' %}selected{% endif %}>Quimioterapia</option>
+                                    <option value="RADIOTERAPIA" {% if filtros.procedure == 'RADIOTERAPIA' %}selected{% endif %}>Radioterapia</option>
+                                    <option value="CIRUGIA" {% if filtros.procedure == 'CIRUGIA' %}selected{% endif %}>Cirugía</option>
+                                    <option value="IMAGENES" {% if filtros.procedure == 'IMAGENES' %}selected{% endif %}>Imágenes</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-12 d-flex justify-content-end gap-2">
+                                <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Limpiar</a>
+                                <button class="btn btn-primary px-4" type="submit"><i class="fas fa-filter"></i> Filtrar</button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
-
-                <hr class="text-muted opacity-25">
-
-                <!-- 2. FILTROS PRINCIPALES (Grid) -->
-                <div class="row g-3">
-                    
-                    <!-- Rango de Fechas -->
-                    <div class="col-md-3">
-                        <label for="date_from" class="form-label fw-bold small text-muted">Desde</label>
-                        <input type="date" id="date_from" name="date_from" class="form-control" value="{{ filtros.date_from }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="date_to" class="form-label fw-bold small text-muted">Hasta</label>
-                        <input type="date" id="date_to" name="date_to" class="form-control" value="{{ filtros.date_to }}">
-                    </div>
-
-                    <!-- Estado -->
-                    <div class="col-md-3">
-                        <label for="status" class="form-label fw-bold small text-muted">Estado Solicitud</label>
-                        <select id="status" name="status" class="form-select">
-                            <option value="" {% if not filtros.status %}selected{% endif %}>Todos los estados</option>
-                            <option value="PENDIENTE" {% if filtros.status == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
-                            <option value="EN_GESTION" {% if filtros.status == 'EN_GESTION' %}selected{% endif %}>En gestión</option>
-                            <option value="POR_GESTIONAR" {% if filtros.status == 'POR_GESTIONAR' %}selected{% endif %}>Por gestionar</option>
-                            <option value="AGENDADO" {% if filtros.status == 'AGENDADO' %}selected{% endif %}>Agendado</option>
-                            <option value="REALIZADO" {% if filtros.status == 'REALIZADO' %}selected{% endif %}>Realizado</option>
-                        </select>
-                    </div>
-
-                    <!-- Procedimiento -->
-                    <div class="col-md-3">
-                        <label for="procedure" class="form-label fw-bold small text-muted">Tipo Procedimiento</label>
-                        <select id="procedure" name="procedure" class="form-select">
-                            <option value="" {% if not filtros.procedure %}selected{% endif %}>Todos</option>
-                            <option value="CIRUGIA" {% if filtros.procedure == 'CIRUGIA' %}selected{% endif %}>Cirugía</option>
-                            <option value="RADIOTERAPIA" {% if filtros.procedure == 'RADIOTERAPIA' %}selected{% endif %}>Radioterapia</option>
-                            <option value="QUIMIOTERAPIA" {% if filtros.procedure == 'QUIMIOTERAPIA' %}selected{% endif %}>Quimioterapia</option>
-                            <option value="CONSULTA" {% if filtros.procedure == 'CONSULTA' %}selected{% endif %}>Consulta</option>
-                            <option value="IMAGENES" {% if filtros.procedure == 'IMAGENES' %}selected{% endif %}>Imágenes</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- 3. FILTROS AVANZADOS (Agrupadores) -->
-                <div class="row g-3 mt-1">
-                    <div class="col-md-6">
-                        <label for="appointment_type" class="form-label fw-bold small text-muted">Tipo de Caso</label>
-                        <select id="appointment_type" name="appointment_type" class="form-select">
-                            <option value="">Todos</option>
-                            <!-- Corregido: Prebalentes -> Prevalentes -->
-                            <option value="incidentes" {% if filtros.appointment_type == 'incidentes' %}selected{% endif %}>Incidentes (Nuevos)</option>
-                            <option value="prevalentes" {% if filtros.appointment_type == 'prevalentes' %}selected{% endif %}>Prevalentes (Antiguos)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <label for="priority" class="form-label fw-bold small text-muted">Criterio de Prioridad</label>
-                        <select id="priority" name="priority" class="form-select">
-                            <option value="">Estándar</option>
-                            <option value="alta" {% if filtros.priority == 'alta' %}selected{% endif %}>Prioridad Alta</option>
-                            <option value="media" {% if filtros.priority == 'media' %}selected{% endif %}>Prioridad Media</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- 4. BOTONES DE ACCIÓN -->
-                <div class="row mt-4">
-                    <div class="col-12 d-flex justify-content-end gap-2">
-                        <!-- El botón Limpiar ahora es un enlace que recarga la página limpia -->
-                        <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-times"></i> Limpiar Filtros
-                        </a>
-                        <button class="btn btn-primary px-4" type="submit">
-                            <i class="fas fa-search"></i> Filtrar Resultados
-                        </button>
-                    </div>
-                </div>
-
-            </form>
-        </div>
-    </div>
-</section>
-
-        <!-- KPI Grid -->
-<section class="section">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-        
-        <!-- Total Seguimientos -->
-        <div class="card" style="text-align: center; border-top: 4px solid #3b82f6;">
-            <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Total Seguimientos</div>
-            <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.total }}</div>
-            <div style="font-size: 12px; color: #6b7280;">100%</div>
-        </div>
-
-        <!-- Completados -->
-        <div class="card" style="text-align: center; border-top: 4px solid #10b981;">
-            <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Completados</div>
-            <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.completados }}</div>
-            <div style="font-size: 12px; color: #6b7280;">{{ stats.porcentaje_completado }}%</div>
-        </div>
-
-        <!-- Pendientes -->
-        <div class="card" style="text-align: center; border-top: 4px solid #f59e0b;">
-            <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Pendientes</div>
-            <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.pendientes }}</div>
-            <div style="font-size: 12px; color: #6b7280;">{{ stats.porcentaje_pendiente }}%</div>
-        </div>
-
-        <!-- Promedio Días -->
-        <div class="card" style="text-align: center; border-top: 4px solid #8b5cf6;">
-            <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Promedio Días</div>
-            <div style="font-size: 36px; font-weight: bold; color: #1f2937;">
-                {{ stats.promedio_dias|default:"-" }}
             </div>
-            <div style="font-size: 12px; color: #6b7280;">Entre sesiones</div>
-        </div>
-    </div>
-</section>
+        </section>
 
-<!-- ====== 3 GRÁFICAS – DESPUÉS DE LOS CARDS Y ANTES DE LA TABLA ====== -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 28px; margin: 50px 0 30px 0;">
-    
-    <!-- 1. Estado de la Solicitud -->
-    <div class="card" style="padding: 20px;">
-        <h3 style="text-align:center; margin-bottom: 20px; color:#1e40af; font-size:1.3em;">Estado de la Solicitud</h3>
-        <canvas id="chartEstado"></canvas>
-    </div>
+        <!-- KPI GRID (Estilo Original Recuperado + Datos Reales) -->
+        <section class="section">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                
+                <!-- Total -->
+                <div class="card" style="text-align: center; border-top: 4px solid #3b82f6;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Total Seguimientos</div>
+                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.total }}</div>
+                    <div style="font-size: 12px; color: #6b7280;">100%</div>
+                </div>
 
-    <!-- 2. Barreras más Frecuentes -->
-    <div class="card" style="padding: 20px;">
-        <h3 style="text-align:center; margin-bottom: 20px; color:#dc2626; font-size:1.3em;">Barreras más Frecuentes</h3>
-        <canvas id="chartBarreras"></canvas>
-    </div>
+                <!-- Completados -->
+                <div class="card" style="text-align: center; border-top: 4px solid #10b981;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Completados</div>
+                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.completados }}</div>
+                    <div style="font-size: 12px; color: #6b7280;">{{ stats.porcentaje_completado }}%</div>
+                </div>
 
-    <!-- 3. Procedimientos más Solicitados -->
-    <div class="card" style="padding: 20px;">
-        <h3 style="text-align:center; margin-bottom: 20px; color:#2563eb; font-size:1.3em;">Procedimientos más Solicitados</h3>
-        <canvas id="chartProcedimientos"></canvas>
-    </div>
-</div>
+                <!-- Pendientes -->
+                <div class="card" style="text-align: center; border-top: 4px solid #f59e0b;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Pendientes</div>
+                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.pendientes }}</div>
+                    
+                    <!-- AQUÍ MOSTRAMOS EL PORCENTAJE FUNCIONAL -->
+                    <div style="font-size: 12px; color: #6b7280;">
+                        <strong>{{ stats.porcentaje_pendientes }}%</strong>
+                    </div>
+                </div>
 
-<!-- ====== TABLA DE SEGUIMIENTO ====== -->  
-<div class="card shadow-sm mt-4 p-3">  
-    <h3 class="mb-3">Detalle por Pacientes</h3>  
-    <table class="table table-hover align-middle">  
-        <thead class="table-light">  
-            <tr>  
-                <th>Paciente</th>  
-                <th>Procedimiento</th>  
-                <th>CUPS</th>  
-                <th>Servicio</th>  
-                <th>Estado</th>  
-                <th>Barrera</th>  
-                <th>Solicitud</th>  
-                <th>Cita</th>  
-                <th>Días</th>  
-                <th>Acciones</th>  
-            </tr>  
-        </thead>  
-        <tbody>  
-    {% for r in page_obj %} 
-    <tr class="patient-row align-middle">  
-        <!-- Nombre arreglado con el paso 1 -->
-        <td>
-            <div class="fw-bold">{{ r.patient.nombre }}</div>
-            <small class="text-muted">{{ r.patient.documento }}</small>
-        </td>  
-        <td><span class="badge bg-secondary">{{ r.tipo_procedimiento|upper|default:"-" }}</span></td>  
-        <td>{{ r.cups|default:"-" }}</td>  
-        <td style="max-width: 200px;" class="text-truncate">{{ r.servicio|default:r.observaciones|default:"-" }}</td>  
-        
-        <!-- Estados con colores Bootstrap -->
-        <td>  
-            {% if r.estado_solicitud == "REALIZADO" %}  
-                <span class="badge bg-success">REALIZADO</span>  
-            {% elif r.estado_solicitud == "AGENDADO" %}  
-                <span class="badge bg-primary">AGENDADO</span>  
-            {% elif r.estado_solicitud == "PENDIENTE" %}  
-                <span class="badge bg-warning text-dark">PENDIENTE</span>  
-            {% elif r.estado_solicitud == "EN_GESTION" %}  
-                <span class="badge bg-info text-dark">GESTIÓN</span>
-            {% elif r.estado_solicitud == "CANCELADO" %}
-                <span class="badge bg-secondary">CANCELADO</span>
-            {% else %}  
-                <span class="badge bg-light text-dark border">{{ r.estado_solicitud|default:"-" }}</span>  
-            {% endif %}  
-        </td>  
-        
-        <td>{{ r.barrera|default:"-" }}</td>  
-        <td>{{ r.fecha_solicitud_cita|date:"d/m/Y"|default:"-" }}</td>  
-        <td>{{ r.fecha_cita|date:"d/m/Y"|default:"-" }}</td>  
-        <td class="text-center font-monospace">{{ r.dias_diff|default:"-" }}</td>  
-        
-        <!-- COLUMNA ÚNICA DE ACCIONES -->
-        <td>
-            <div class="btn-group" role="group">
-                <!-- Ver -->
-                <a href="{% url 'followup_detail' r.id %}" class="btn btn-sm btn-info text-white" title="Ver Detalle">
-                    <i class="fas fa-eye"></i>
-                </a>
-                <!-- Editar -->
-                <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-warning text-white" title="Editar">
-                    <i class="fas fa-pen"></i>
-                </a>
-                <!-- Eliminar -->
-                <a href="{% url 'eliminar_followup' r.id %}" class="btn btn-sm btn-danger text-white" title="Eliminar">
-                    <i class="fas fa-trash-alt"></i>
-                </a>
+                <!-- Promedio Días -->
+                <div class="card" style="text-align: center; border-top: 4px solid #8b5cf6;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Promedio Días</div>
+                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">
+                        {{ stats.promedio_dias|default:"-" }}
+                    </div>
+                    <div style="font-size: 12px; color: #6b7280;">Entre sesiones</div>
+                </div>
             </div>
-        </td>  
-    </tr>  
-    {% empty %}  
-    <tr>  
-        <td colspan="10" class="text-center py-4 text-muted">
-            <i class="fas fa-inbox fa-2x mb-2"></i><br>
-            No hay registros disponibles con estos filtros.
-        </td>  
-    </tr> 
-    {% endfor %}  
-</tbody> 
-    </table>  
-</div>  
+        </section>
 
-<!-- PAGINACIÓN LIMPIA, COMPACTA Y SIN DUPLICADOS -->
-{% if page_obj.has_other_pages or page_size %}
-<div class="card mt-3 p-3">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-        
-        <!-- Selector de filas por página -->
-        <form method="get" class="d-flex align-items-center gap-2">
-            {% for key, value in request.GET.items %}
-                {% if key != 'page' and key != 'page_size' %}
-                    <input type="hidden" name="{{ key }}" value="{{ value }}">
-                {% endif %}
-            {% endfor %}
-            <small class="text-muted">Filas por página:</small>
-            <select name="page_size" onchange="this.form.submit()" class="form-select form-select-sm" style="width: auto;">
-                <option value="20" {% if page_size == 20 %}selected{% endif %}>20</option>
-                <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
-                <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
-            </select>
-        </form>
-
-        <!-- Información de registros -->
-        <div class="text-muted small">
-            Mostrando {{ page_obj.start_index }}–{{ page_obj.end_index }} de {{ page_obj.paginator.count }} registros
+        <!-- GRÁFICAS -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; margin-bottom: 30px;">
+            <div class="card">
+                <h3 style="text-align:center; font-size:1.1em; color:#1e40af; margin-bottom:15px;">Estado Solicitud</h3>
+                <canvas id="chartEstado"></canvas>
+            </div>
+            <div class="card">
+                <h3 style="text-align:center; font-size:1.1em; color:#dc2626; margin-bottom:15px;">Barreras Frecuentes</h3>
+                <canvas id="chartBarreras"></canvas>
+            </div>
+            <div class="card">
+                <h3 style="text-align:center; font-size:1.1em; color:#2563eb; margin-bottom:15px;">Top Procedimientos</h3>
+                <canvas id="chartProcedimientos"></canvas>
+            </div>
         </div>
 
-        <!-- Botones de paginación -->
-        <div class="d-flex gap-1">
-            {% if page_obj.has_previous %}
-                <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}{% if request.GET.page_size %}&page_size={{ page_size }}{% endif %}&page={{ page_obj.previous_page_number }}"
-                   class="btn btn-primary btn-sm">Anterior</a>
-            {% endif %}
+        <!-- TABLA (Lógica Nueva + Estilo) -->
+        <div class="card shadow-sm p-0 overflow-hidden">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <h5 class="mb-0">Listado de Pacientes</h5>
+                
+                <!-- Selector de Filas -->
+                <form method="get" class="d-inline-block">
+                    {% for key, value in request.GET.items %}
+                        {% if key != 'per_page' and key != 'page' %}
+                            <input type="hidden" name="{{ key }}" value="{{ value }}">
+                        {% endif %}
+                    {% endfor %}
+                    <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="10" {% if per_page == 10 %}selected{% endif %}>10 filas</option>
+                        <option value="25" {% if per_page == 25 %}selected{% endif %}>25 filas</option>
+                        <option value="50" {% if per_page == 50 %}selected{% endif %}>50 filas</option>
+                        <option value="100" {% if per_page == 100 %}selected{% endif %}>100 filas</option>
+                    </select>
+                </form>
+            </div>
 
-            <!-- Números cercanos -->
-            {% for num in page_obj.paginator.page_range %}
-                {% if num >= page_obj.number|add:-1 and num <= page_obj.number|add:1 %}
-                    <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}{% if request.GET.page_size %}&page_size={{ page_size }}{% endif %}&page={{ num }}"
-                       class="btn {% if page_obj.number == num %}btn-primary{% else %}btn-outline-secondary{% endif %} btn-sm">
-                        {{ num }}
-                    </a>
-                {% endif %}
-            {% endfor %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="mw-paciente">Paciente</th>
+                            <th class="mw-procedimiento">Procedimiento</th> <!-- Columna problemática controlada -->
+                            <th class="mw-estado">Estado</th>
+                            <th class="mw-fechas">Fechas</th>
+                            <th class="text-center mw-tiempos">Tiempos</th>
+                            <th class="mw-obs">Observaciones</th>
+                            <th class="mw-acciones">Acciones</th>
+                        </tr>
+                    </thead>
+                    </thead>
+                    <tbody>
+                    {% for r in page_obj %}
+                        <tr class="{% if r.es_alerta_roja %}table-danger border-start border-5 border-danger{% endif %}">
+                            
+                            <!-- Paciente -->
+                            <td style="min-width: 250px;">
+    <div class="fw-bold text-dark">{{ r.patient.nombre|title }}</div>
+    <small class="text-muted"><i class="far fa-id-card"></i> {{ r.patient.numero_documento }}</small>
+</td>
+                            
+                            <!-- Procedimiento -->
+                            <td class="mw-procedimiento">
+                                <!-- Usamos un div contenedor con title para ver el nombre completo al pasar el mouse -->
+                                <div class="d-flex flex-column" title="{{ r.tipo_procedimiento }}">
+                                    
+                                    <!-- Badge con texto truncado -->
+                                    <span class="badge bg-secondary text-truncate-box mb-1">
+                                        {{ r.tipo_procedimiento|default:"-" }}
+                                    </span>
 
-            {% if page_obj.has_next %}
-                <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}{% if request.GET.page_size %}&page_size={{ page_size }}{% endif %}&page={{ page_obj.next_page_number }}"
-                   class="btn btn-primary btn-sm">Siguiente</a>
-            {% endif %}
+                                    <!-- Alerta roja si aplica -->
+                                    {% if r.es_alerta_roja %}
+                                        <div class="mb-1"><span class="badge bg-danger">! +30 Días</span></div>
+                                    {% endif %}
+                                    
+                                    <!-- CUPS pequeño y también truncado si es muy largo -->
+                                    <small class="text-muted text-truncate-box">{{ r.cups|default:"" }}</small>
+                                </div>
+                            </td>
+                            
+                            <!-- Estado -->
+                            <td>
+                                {% if r.estado_solicitud == "REALIZADO" %}
+                                    <span class="badge bg-success">REALIZADO</span>
+                                {% elif r.estado_solicitud == "AGENDADO" %}
+                                    <span class="badge bg-primary">AGENDADO</span>
+                                {% elif r.estado_solicitud == "PENDIENTE" %}
+                                    <span class="badge bg-warning text-dark">PENDIENTE</span>
+                                {% elif r.estado_solicitud == "EN_GESTION" %}
+                                    <span class="badge bg-info text-dark">GESTIÓN</span>
+                                {% elif r.estado_solicitud == "CANCELADO" %}
+                                    <span class="badge bg-secondary">CANCELADO</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark border">{{ r.estado_solicitud|default:"-" }}</span>
+                                {% endif %}
+                                
+                                {% if r.barrera %}
+                                    <div class="mt-1 small text-danger"><i class="fas fa-exclamation-circle"></i> {{ r.barrera }}</div>
+                                {% endif %}
+                            </td>
+                            
+                            <!-- Fechas -->
+                            <td class="small">
+                                <div><strong>Sol:</strong> {{ r.fecha_solicitud_cita|date:"d/m/Y"|default:"-" }}</div>
+                                {% if r.fecha_cita %}
+                                    <div class="text-primary"><strong>Cita:</strong> {{ r.fecha_cita|date:"d/m/Y" }}</div>
+                                {% endif %}
+                            </td>
+                            
+                            <!-- Tiempos -->
+                            <td class="text-center">
+                                {% if r.fecha_cita %}
+                                    <span class="badge bg-light text-dark border">{{ r.dias_diff }} días</span>
+                                    <div class="small text-muted">Gestión</div>
+                                {% else %}
+                                    {% if r.es_alerta_roja %}
+                                        <span class="fw-bold text-danger">{{ r.dias_espera_actuales }} días</span>
+                                        <div class="small text-danger fw-bold">Esperando</div>
+                                    {% else %}
+                                        <span class="text-muted">{{ r.dias_espera_actuales }} días</span>
+                                        <div class="small text-muted">Esperando</div>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            
+                            <!-- Observaciones -->
+                            <td class="mw-obs">
+                                <div class="text-truncate-box" title="{{ r.observaciones }}">
+                                    {% if r.observaciones %}
+                                        {{ r.observaciones }}
+                                    {% else %}
+                                        <span class="text-muted small">-</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <!-- Acciones -->
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'followup_detail' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-eye text-primary"></i></a>
+                                    <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-pen text-warning"></i></a>
+                                    <a href="{% url 'eliminar_followup' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-trash text-danger"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <i class="fas fa-folder-open fa-3x mb-3 text-muted opacity-50"></i>
+                                <h4>No hay registros</h4>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginación Footer -->
+            <div class="card-footer bg-white py-3">
+                <nav>
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item"><a class="page-link" href="?{% param_replace page=page_obj.previous_page_number %}">Anterior</a></li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                        {% endif %}
+                        <li class="page-item disabled"><span class="page-link border-0">Pág {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+                        {% if page_obj.has_next %}
+                            <li class="page-item"><a class="page-link" href="?{% param_replace page=page_obj.next_page_number %}">Siguiente</a></li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
         </div>
     </div>
-</div>
-{% endif %}
 
-<!-- SCRIPT DE GRÁFICAS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
+    <!-- SCRIPTS GRÁFICAS -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Estado
+        new Chart(document.getElementById('chartEstado'), {
+            type: 'doughnut',
+            data: {
+                labels: {{ estado_procedimiento_labels|default:"[]"|safe }},
+                datasets: [{
+                    data: {{ estado_procedimiento_values|default:"[]"|safe }},
+                    backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: { plugins: { legend: { position: 'bottom' } }, cutout: '70%' }
+        });
+        
+        // Barreras
+        new Chart(document.getElementById('chartBarreras'), {
+            type: 'bar',
+            data: {
+                labels: {{ barreras_labels|default:"[]"|safe }},
+                datasets: [{
+                    label: 'Casos',
+                    data: {{ barreras_values|default:"[]"|safe }},
+                    backgroundColor: '#ef4444',
+                    borderRadius: 4
+                }]
+            },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
 
-    // === 1. Estado de la Solicitud ===
-    new Chart(document.getElementById('chartEstado'), {
-        type: 'doughnut',
-        data: {
-            labels: {{ estado_procedimiento_labels|default:"[]"|safe }},
-            datasets: [{
-                data: {{ estado_procedimiento_values|default:"[]"|safe }},
-                backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
-                borderColor: '#fff',
-                borderWidth: 3
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } }
-            }
-        }
+        // Procedimientos
+        new Chart(document.getElementById('chartProcedimientos'), {
+            type: 'bar',
+            data: {
+                labels: {{ oportunidad_procedimiento_labels|default:"[]"|safe }},
+                datasets: [{
+                    label: 'Solicitudes',
+                    data: {{ oportunidad_procedimiento_values|default:"[]"|safe }},
+                    backgroundColor: '#3b82f6',
+                    borderRadius: 4
+                }]
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
     });
-
-    // === 2. Barreras más frecuentes ===
-    new Chart(document.getElementById('chartBarreras'), {
-        type: 'bar',
-        data: {
-            labels: {{ barreras_labels|default:"[]"|safe }},
-            datasets: [{
-                label: 'Cantidad',
-                data: {{ barreras_values|default:"[]"|safe }},
-                backgroundColor: '#ef4444',
-                borderRadius: 8,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: { x: { ticks: { stepSize: 1 } } }
-        }
-    });
-
-    // === 3. Procedimientos más solicitados ===
-    new Chart(document.getElementById('chartProcedimientos'), {
-        type: 'bar',
-        data: {
-            labels: {{ oportunidad_procedimiento_labels|default:"[]"|safe }},
-            datasets: [{
-                label: 'Cantidad',
-                data: {{ oportunidad_procedimiento_values|default:"[]"|safe }},
-                backgroundColor: '#3b82f6',
-                borderRadius: 8
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-        }
-    });
-});
-</script>
+    </script>
 </body>
 </html>
 {% endblock %}
