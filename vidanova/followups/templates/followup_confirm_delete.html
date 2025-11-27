@@ -1,37 +1,30 @@
 {% extends 'layout.html' %}
 
-{% block title %}Confirmar Eliminación{% endblock %}
-
 {% block content %}
-<div class="container" style="max-width: 600px; margin-top: 50px;">
-    <div class="card shadow border-danger">
-        <div class="card-header bg-danger text-white">
-            <h4 class="mb-0"><i class="fas fa-exclamation-triangle"></i> ¿Estás seguro?</h4>
-        </div>
-        <div class="card-body text-center p-5">
-            <p class="lead text-muted">Estás a punto de eliminar permanentemente el seguimiento de:</p>
-            
-            <h3 class="text-dark font-weight-bold mb-4">{{ followup.patient.nombre }}</h3>
-            
-            <div class="alert alert-warning">
-                Procedimiento: <strong>{{ followup.tipo_procedimiento }}</strong><br>
-                Estado: {{ followup.get_estado_solicitud_display }}<br>
-                Fecha: {{ followup.fecha_solicitud_cita|date:"d/m/Y" }}
-            </div>
-
-            <p class="small text-secondary mb-4">Esta acción no se puede deshacer.</p>
-
-            <form method="post">
-                {% csrf_token %}
-                <div class="d-grid gap-2 d-md-flex justify-content-center">
-                    <a href="{% url 'followup_dashboard' %}" class="btn btn-secondary btn-lg px-4">
-                        Cancelar
-                    </a>
-                    <button type="submit" class="btn btn-danger btn-lg px-4">
-                        <i class="fas fa-trash-alt"></i> Sí, Eliminar
-                    </button>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación</h5>
                 </div>
-            </form>
+                <div class="card-body text-center p-5">
+                    <p class="lead">¿Estás seguro de que deseas eliminar este registro?</p>
+                    
+                    <div class="alert alert-light border">
+                        <strong>Paciente:</strong> {{ followup.patient.nombre_completo }}<br>
+                        <strong>Procedimiento:</strong> {{ followup.tipo_procedimiento }}
+                    </div>
+
+                    <p class="text-muted small">Esta acción no se puede deshacer.</p>
+
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+                        <button type="submit" class="btn btn-danger px-4">Sí, Eliminar</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>

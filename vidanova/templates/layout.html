@@ -6,50 +6,119 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Vidanova{% endblock %}</title>
     
-    <!-- 1. BOOTSTRAP (Vital para los estilos de botones y columnas) -->
+    <!-- Librerías -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Iconos -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    <!-- Tus estilos personalizados -->
-    <link rel="stylesheet" href="{% static 'css/seguimiento.css' %}">
+    <!-- CSS PROPIO (Ahora limpio) -->
     <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
+    <link rel="stylesheet" href="{% static 'css/seguimiento.css' %}">
 </head>
 <body>
-    <div class="d-flex" id="wrapper">
-        <!-- Sidebar (Mantenemos tu estructura pero con clases bootstrap para layout) -->
-        <div class="side-menu bg-white" id="sidebar-wrapper">     
-            <nav class="sidebar">
-                <ul>
-                    <li class="active"><i class="bx bxs-dashboard"></i><samp>Tablero</samp></li>
-                    <li><i class="bx bxs-graduation"></i><samp>Pacientes</samp></li>
-                    <li><i class="bx bxs-book-reader"></i><samp>Citas</samp></li>
-                </ul>
-            </nav>
-        </div>
-        
-        <!-- Contenido Principal -->
-        <div id="page-content-wrapper" class="w-100">
-            <!-- 2. BLOQUE DE ALERTAS (Aquí saldrán los mensajes verdes/rojos) -->
-            {% if messages %}
-                <div class="container mt-3">
-                    {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
 
-            <div class="container-fluid p-4">
-                {% block content %}{% endblock %}
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <!-- Logo -->
+        <div>
+            <div class="logo-details">
+                <i class='bx bxs-heart-circle'></i>
+                <div class="logo_name">VIDANOVA</div>
+            </div>
+            
+            <!-- Menú -->
+            <ul class="nav-list">
+                
+                <div class="menu-label">Operación</div>
+                <li>
+                    <a href="{% url 'followup_dashboard' %}" class="{% if '/seguimiento/' == request.path %}active{% endif %}">
+                        <i class='bx bxs-dashboard'></i>
+                        <span class="links_name">Tablero</span>
+                    </a>
+                    <span class="tooltip">Tablero</span>
+                </li>
+                <li>
+                    <a href="{% url 'cargar_datos' %}" class="{% if 'cargar-datos' in request.path %}active{% endif %}">
+                        <i class='bx bxs-cloud-upload'></i>
+                        <span class="links_name">Cargar</span>
+                    </a>
+                    <span class="tooltip">Cargar</span>
+                </li>
+
+                <div class="menu-label">Estrategia</div>
+                <li>
+                    <a href="{% url 'analisis_institucional' %}" class="{% if 'analisis-institucional' in request.path %}active{% endif %}">
+                        <i class='bx bxs-pie-chart-alt-2'></i>
+                        <span class="links_name">Gerencia</span>
+                    </a>
+                    <span class="tooltip">Gerencia</span>
+                </li>
+
+                <div class="menu-label">Sistema</div>
+                <li>
+                    <a href="/admin" target="_blank">
+                        <i class='bx bxs-data'></i>
+                        <span class="links_name">Base Datos</span>
+                    </a>
+                    <span class="tooltip">Admin DB</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- FOOTER DE USUARIO RESTITUIDO -->
+        <div class="profile-content">
+            <div class="profile-details">
+                <i class='bx bxs-user-circle'></i>
+                <div class="name_job">
+                    <div class="name">Administrador</div>
+                    <div class="job">En línea</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Scripts de Bootstrap -->
+    <!-- CONTENIDO PRINCIPAL -->
+    <div class="main-content">
+        {% if messages %}
+            <div class="mb-4">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    
+
+    <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const themeBtn = document.getElementById('theme-btn');
+        const icon = themeBtn.querySelector('i');
+        const body = document.body;
+
+        const currentTheme = localStorage.getItem('vidanova-theme');
+        if (currentTheme === 'dark') {
+            body.setAttribute('data-theme', 'dark');
+            icon.classList.replace('bxs-moon', 'bxs-sun');
+        }
+
+        function toggleTheme() {
+            if (body.hasAttribute('data-theme')) {
+                body.removeAttribute('data-theme');
+                icon.classList.replace('bxs-sun', 'bxs-moon');
+                localStorage.setItem('vidanova-theme', 'light');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                icon.classList.replace('bxs-moon', 'bxs-sun');
+                localStorage.setItem('vidanova-theme', 'dark');
+            }
+        }
+    </script>
 </body>
 </html>

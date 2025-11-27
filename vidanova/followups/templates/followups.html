@@ -225,67 +225,63 @@
                     {% for r in page_obj %}
                         <tr class="{% if r.es_alerta_roja %}table-danger border-start border-5 border-danger{% endif %}">
                             
-                            <!-- Paciente -->
-                            <td style="min-width: 250px;">
-    <div class="fw-bold text-dark">{{ r.patient.nombre|title }}</div>
-    <small class="text-muted"><i class="far fa-id-card"></i> {{ r.patient.numero_documento }}</small>
-</td>
+                            <!-- 1. PACIENTE (Nombre Completo) -->
+                            <td class="mw-paciente">
+                                <div class="fw-bold text-dark text-truncate-box" title="{{ r.patient.nombre_completo }}">
+                                    {{ r.patient.nombre_completo }}
+                                </div>
+                                <div class="small text-muted d-flex align-items-center gap-1">
+                                    <i class="far fa-id-card"></i> {{ r.patient.numero_documento }}
+                                </div>
+                            </td>
                             
-                            <!-- Procedimiento -->
+                            <!-- 2. PROCEDIMIENTO -->
                             <td class="mw-procedimiento">
-                                <!-- Usamos un div contenedor con title para ver el nombre completo al pasar el mouse -->
                                 <div class="d-flex flex-column" title="{{ r.tipo_procedimiento }}">
-                                    
-                                    <!-- Badge con texto truncado -->
                                     <span class="badge bg-secondary text-truncate-box mb-1">
                                         {{ r.tipo_procedimiento|default:"-" }}
                                     </span>
-
-                                    <!-- Alerta roja si aplica -->
-                                    {% if r.es_alerta_roja %}
-                                        <div class="mb-1"><span class="badge bg-danger">! +30 Días</span></div>
-                                    {% endif %}
-                                    
-                                    <!-- CUPS pequeño y también truncado si es muy largo -->
                                     <small class="text-muted text-truncate-box">{{ r.cups|default:"" }}</small>
                                 </div>
                             </td>
                             
-                            <!-- Estado -->
-                            <td>
-                                {% if r.estado_solicitud == "REALIZADO" %}
+                            <!-- 3. ESTADO -->
+                            <td class="mw-estado">
+                                {% if "REALIZADO" in r.estado_solicitud|upper %}
                                     <span class="badge bg-success">REALIZADO</span>
-                                {% elif r.estado_solicitud == "AGENDADO" %}
+                                {% elif "AGENDADO" in r.estado_solicitud|upper %}
                                     <span class="badge bg-primary">AGENDADO</span>
-                                {% elif r.estado_solicitud == "PENDIENTE" %}
-                                    <span class="badge bg-warning text-dark">PENDIENTE</span>
-                                {% elif r.estado_solicitud == "EN_GESTION" %}
-                                    <span class="badge bg-info text-dark">GESTIÓN</span>
-                                {% elif r.estado_solicitud == "CANCELADO" %}
+                                {% elif "CANCELADO" in r.estado_solicitud|upper %}
                                     <span class="badge bg-secondary">CANCELADO</span>
                                 {% else %}
-                                    <span class="badge bg-light text-dark border">{{ r.estado_solicitud|default:"-" }}</span>
-                                {% endif %}
-                                
-                                {% if r.barrera %}
-                                    <div class="mt-1 small text-danger"><i class="fas fa-exclamation-circle"></i> {{ r.barrera }}</div>
+                                    <span class="badge bg-warning text-dark">PENDIENTE</span>
                                 {% endif %}
                             </td>
                             
-                            <!-- Fechas -->
-                            <td class="small">
+                            <!-- 4. FECHAS (Con alerta visual si hay error) -->
+                            <td class="mw-fechas small">
                                 <div><strong>Sol:</strong> {{ r.fecha_solicitud_cita|date:"d/m/Y"|default:"-" }}</div>
                                 {% if r.fecha_cita %}
-                                    <div class="text-primary"><strong>Cita:</strong> {{ r.fecha_cita|date:"d/m/Y" }}</div>
+                                    <div class="{% if r.es_inconsistente %}text-danger fw-bold{% else %}text-primary{% endif %}">
+                                        <strong>Cita:</strong> {{ r.fecha_cita|date:"d/m/Y" }}
+                                    </div>
                                 {% endif %}
                             </td>
                             
-                            <!-- Tiempos -->
-                            <td class="text-center">
+                            <!-- 5. TIEMPOS (Manejo de Error) -->
+                            <td class="text-center mw-tiempos">
                                 {% if r.fecha_cita %}
-                                    <span class="badge bg-light text-dark border">{{ r.dias_diff }} días</span>
-                                    <div class="small text-muted">Gestión</div>
+                                    <!-- Si ya tiene cita -->
+                                    {% if r.es_inconsistente %}
+                                        <span class="badge bg-danger" title="Error en Excel: Cita antes de solicitud">
+                                            <i class="fas fa-exclamation-triangle"></i> Error Fecha
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark border">{{ r.dias_diff }} días</span>
+                                        <div class="small text-muted">Gestión</div>
+                                    {% endif %}
                                 {% else %}
+                                    <!-- Si está pendiente -->
                                     {% if r.es_alerta_roja %}
                                         <span class="fw-bold text-danger">{{ r.dias_espera_actuales }} días</span>
                                         <div class="small text-danger fw-bold">Esperando</div>
@@ -296,23 +292,30 @@
                                 {% endif %}
                             </td>
                             
-                            <!-- Observaciones -->
+                            <!-- 6. OBSERVACIONES -->
                             <td class="mw-obs">
                                 <div class="text-truncate-box" title="{{ r.observaciones }}">
-                                    {% if r.observaciones %}
-                                        {{ r.observaciones }}
-                                    {% else %}
-                                        <span class="text-muted small">-</span>
-                                    {% endif %}
+                                    {{ r.observaciones|default:"-" }}
                                 </div>
                             </td>
 
-                            <!-- Acciones -->
-                            <td>
+                            <!-- 7. ACCIONES -->
+                            <td class="mw-acciones">
                                 <div class="btn-group">
-                                    <a href="{% url 'followup_detail' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-eye text-primary"></i></a>
-                                    <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-pen text-warning"></i></a>
-                                    <a href="{% url 'eliminar_followup' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-trash text-danger"></i></a>
+                                    <!-- VER: Detalle completo -->
+                                    <a href="{% url 'followup_detail' r.id %}" class="btn btn-sm btn-light border" title="Ver Detalle">
+                                        <i class="fas fa-eye text-primary"></i>
+                                    </a>
+                                    
+                                    <!-- EDITAR: Formulario manual -->
+                                    <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-light border" title="Editar">
+                                        <i class="fas fa-pen text-warning"></i>
+                                    </a>
+                                    
+                                    <!-- ELIMINAR: Confirmación -->
+                                    <a href="{% url 'eliminar_followup' r.id %}" class="btn btn-sm btn-light border" title="Eliminar">
+                                        <i class="fas fa-trash text-danger"></i>
+                                    </a>
                                 </div>
                             </td>
                         </tr>
