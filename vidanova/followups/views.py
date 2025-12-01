@@ -4,6 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.core.files.storage import FileSystemStorage
 from django.core.paginator import Paginator
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpResponse
 
@@ -18,29 +19,33 @@ from .services import (
 )
 
 # --- 1. TABLERO PRINCIPAL (DASHBOARD) ---
+@login_required
 def followup_dashboard(request):
     """
     Vista principal: Tablero de control + Listado con filtros y buscador.
     """
-    # Queryset Base
+    # 1. Queryset Base
     queryset = FollowUp.objects.select_related('patient').all().order_by('-fecha_solicitud_cita', '-id')
 
-    # Captura de Filtros
+    # 2. Captura de Filtros (Nuevos: eps, barrier)
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     status = request.GET.get('status')
     procedure = request.GET.get('procedure')
+    eps = request.GET.get('eps')          # <--- NUEVO
+    barrier = request.GET.get('barrier')  # <--- NUEVO
     q_search = request.GET.get('q')
 
-    # Aplicación de Filtros
+    # 3. Aplicación de Filtros
     if date_from: queryset = queryset.filter(fecha_solicitud_cita__gte=date_from)
     if date_to: queryset = queryset.filter(fecha_solicitud_cita__lte=date_to)
     
-    if status: 
-        queryset = queryset.filter(estado_solicitud__icontains=status)
+    if status: queryset = queryset.filter(estado_solicitud__icontains=status)
+    if procedure: queryset = queryset.filter(tipo_procedimiento__icontains=procedure)
     
-    if procedure: 
-        queryset = queryset.filter(tipo_procedimiento__icontains=procedure)
+    # Filtros Exactos para Dropdown (Usamos exact para coincidir con la lista desplegable)
+    if eps: queryset = queryset.filter(entidad_aseguradora=eps)
+    if barrier: queryset = queryset.filter(barrera=barrier)
     
     # Buscador Global
     if q_search:
@@ -52,16 +57,23 @@ def followup_dashboard(request):
             Q(cups__icontains=q_search)
         )
 
-    # Cálculo de KPIs Operativos
+    # 4. Obtener Opciones para los Selectores (Distinct Values)
+    # Traemos valores únicos de la BD para llenar los <select> automáticamente
+    eps_options = FollowUp.objects.exclude(entidad_aseguradora__isnull=True)\
+        .exclude(entidad_aseguradora='').values_list('entidad_aseguradora', flat=True).distinct().order_by('entidad_aseguradora')
+        
+    barrier_options = FollowUp.objects.exclude(barrera__isnull=True)\
+        .exclude(barrera='').values_list('barrera', flat=True).distinct().order_by('barrera')
+
+    # 5. KPIs y Stats (Mismo código de antes)
     kpi_status = compute_request_status_from_db(queryset)
     kpi_procedure = compute_opportunity_by_procedure(queryset)
     kpi_barriers = compute_barriers(queryset)
 
-    # Stats rápidas
     realizados = queryset.filter(estado_solicitud__icontains='REALIZADO', fecha_cita__isnull=False, fecha_solicitud_cita__isnull=False)
     dias_list = []
     for r in realizados:
-        if r.dias_diff is not None and r.dias_diff >= 0: # Ignoramos errores negativos para el promedio
+        if r.dias_diff is not None and r.dias_diff >= 0:
             dias_list.append(r.dias_diff)
             
     promedio = round(sum(dias_list) / len(dias_list), 1) if dias_list else 0
@@ -94,6 +106,10 @@ def followup_dashboard(request):
         'page_obj': page_obj,
         'filtros': request.GET,
         'stats': stats,
+        # Listas para Dropdowns
+        'eps_options': eps_options,       # <--- ENVIAMOS AL HTML
+        'barrier_options': barrier_options, # <--- ENVIAMOS AL HTML
+        # Gráficas
         'estado_procedimiento_labels': kpi_status['labels'],
         'estado_procedimiento_values': kpi_status['values'],
         'oportunidad_procedimiento_labels': kpi_procedure['procedimiento_labels'],
@@ -104,6 +120,7 @@ def followup_dashboard(request):
     return render(request, 'followups.html', context)
 
 # --- 2. IMPORTACIÓN DE DATOS (LA QUE FALTABA) ---
+@login_required
 def importar_datos(request):
     if request.method == 'POST':
         form = UploadFileForm(request.POST, request.FILES)

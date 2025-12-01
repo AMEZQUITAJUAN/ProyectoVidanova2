@@ -45,6 +45,15 @@
                     <span class="tooltip">Cargar</span>
                 </li>
 
+                <!-- Item Pacientes (Nuevo) -->
+            <li>
+                <a href="{% url 'patient_directory' %}" class="{% if 'pacientes' in request.path %}active{% endif %}">
+                    <i class='bx bxs-group'></i> <!-- Icono de grupo -->
+                    <span class="links_name">Pacientes</span>
+                </a>
+                <span class="tooltip">Pacientes</span>
+            </li>
+
                 <div class="menu-label">Estrategia</div>
                 <li>
                     <a href="{% url 'analisis_institucional' %}" class="{% if 'analisis-institucional' in request.path %}active{% endif %}">
@@ -66,12 +75,24 @@
         </div>
 
         <!-- FOOTER DE USUARIO RESTITUIDO -->
+        <!-- FOOTER INTEGRADO (Usuario + Logout) -->
         <div class="profile-content">
             <div class="profile-details">
+                <!-- Icono de Usuario -->
                 <i class='bx bxs-user-circle'></i>
+                
                 <div class="name_job">
-                    <div class="name">Administrador</div>
-                    <div class="job">En línea</div>
+                    <!-- 1. Nombre Real del Usuario -->
+                    <div class="name">{{ user.username|default:"Usuario"|title }}</div>
+                    
+                    <!-- 2. Botón de Cerrar Sesión -->
+                    <!-- Usamos un formulario POST por seguridad de Django -->
+                    <form action="{% url 'logout' %}" method="post" style="margin: 0; padding: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="job" style="background: none; border: none; padding: 0; color: #94a3b8; cursor: pointer; text-align: left; width: 100%;">
+                            <i class='bx bx-log-out' style="font-size: 12px; min-width: auto; height: auto; line-height: normal;"></i> Cerrar Sesión
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

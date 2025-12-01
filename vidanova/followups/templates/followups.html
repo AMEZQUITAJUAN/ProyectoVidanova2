@@ -74,28 +74,28 @@
                         <!-- Mantenemos per_page oculto -->
                         <input type="hidden" name="per_page" value="{{ per_page }}">
 
-                        <!-- Buscador -->
-                        <div class="row mb-4">
+                        <!-- Buscador Global -->
+                        <div class="row mb-3">
                             <div class="col-md-12">
-                                <div class="input-group input-group-lg">
-                                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
-                                    <input type="text" name="q" class="form-control border-start-0 bg-light" 
-                                           placeholder="Buscar por cédula, nombre o apellido..." value="{{ filtros.q|default:'' }}">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                    <input type="text" name="q" class="form-control border-start-0 ps-0" 
+                                           placeholder="Buscar paciente, cédula o CUPS..." value="{{ filtros.q|default:'' }}">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Selectores -->
-                        <div class="row g-3">
-                            <div class="col-md-3">
+                        <!-- FILA 1: Fechas y Estado -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
                                 <label class="form-label fw-bold small text-muted">Desde</label>
                                 <input type="date" name="date_from" class="form-control" value="{{ filtros.date_from }}">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label fw-bold small text-muted">Hasta</label>
                                 <input type="date" name="date_to" class="form-control" value="{{ filtros.date_to }}">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label fw-bold small text-muted">Estado</label>
                                 <select name="status" class="form-select">
                                     <option value="" {% if not filtros.status %}selected{% endif %}>Todos</option>
@@ -106,7 +106,11 @@
                                     <option value="CANCELADO" {% if filtros.status == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                        </div>
+
+                        <!-- FILA 2: Procedimiento, EPS y Barreras (NUEVO) -->
+                        <div class="row g-3">
+                            <div class="col-md-4">
                                 <label class="form-label fw-bold small text-muted">Procedimiento</label>
                                 <select name="procedure" class="form-select">
                                     <option value="" {% if not filtros.procedure %}selected{% endif %}>Todos</option>
@@ -115,14 +119,34 @@
                                     <option value="RADIOTERAPIA" {% if filtros.procedure == 'RADIOTERAPIA' %}selected{% endif %}>Radioterapia</option>
                                     <option value="CIRUGIA" {% if filtros.procedure == 'CIRUGIA' %}selected{% endif %}>Cirugía</option>
                                     <option value="IMAGENES" {% if filtros.procedure == 'IMAGENES' %}selected{% endif %}>Imágenes</option>
+                                    <option value="LABORATORIO" {% if filtros.procedure == 'LABORATORIO' %}selected{% endif %}>Laboratorio</option>
+                                </select>
+                            </div>
+                            
+
+                            <!-- Selector Barrera Dinámico -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-muted">Barrera</label>
+                                <select name="barrier" class="form-select">
+                                    <option value="">Ninguna / Todas</option>
+                                    {% for b in barrier_options %}
+                                        <option value="{{ b }}" {% if filtros.barrier == b %}selected{% endif %}>
+                                            {{ b }}
+                                        </option>
+                                    {% endfor %}
                                 </select>
                             </div>
                         </div>
 
+                        <!-- Botones de Acción -->
                         <div class="row mt-4">
                             <div class="col-12 d-flex justify-content-end gap-2">
-                                <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Limpiar</a>
-                                <button class="btn btn-primary px-4" type="submit"><i class="fas fa-filter"></i> Filtrar</button>
+                                <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-undo"></i> Limpiar Filtros
+                                </a>
+                                <button class="btn btn-primary px-4 shadow-sm" type="submit">
+                                    <i class="fas fa-filter"></i> Aplicar Filtros
+                                </button>
                             </div>
                         </div>
                     </form>

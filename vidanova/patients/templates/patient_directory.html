@@ -1,0 +1,104 @@
+{% extends 'layout.html' %}
+
+{% block title %}Directorio de Pacientes{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="text-primary fw-bold"><i class="bx bxs-user-detail me-2"></i>Directorio de Pacientes</h3>
+            <p class="text-muted">Base de datos unificada de afiliados.</p>
+        </div>
+        <span class="badge bg-primary fs-6">{{ page_obj.paginator.count }} Personas</span>
+    </div>
+
+    <!-- Buscador -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <form method="GET" class="d-flex gap-2">
+                <input type="text" name="q" class="form-control form-control-lg" 
+                       placeholder="Buscar por nombre, apellido o número de documento..." 
+                       value="{{ q_search|default:'' }}">
+                <button type="submit" class="btn btn-primary px-4"><i class="fas fa-search"></i></button>
+                {% if q_search %}
+                    <a href="{% url 'patient_directory' %}" class="btn btn-outline-secondary" title="Limpiar"><i class="fas fa-times"></i></a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de Pacientes -->
+    <div class="card shadow-sm border-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Paciente</th>
+                        <th>Documento</th>
+                        <th>Datos Demográficos</th>
+                        <th>Ubicación</th>
+                        <th class="text-center">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for p in page_obj %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark">{{ p.nombre_completo }}</div>
+                            <small class="text-muted">Reg: {{ p.fecha_registro|date:"d/m/Y" }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ p.tipo_documento }} {{ p.numero_documento }}</span>
+                        </td>
+                        <td>
+                            <div class="small">
+                                <div><i class="fas fa-venus-mars text-muted width-20"></i> {{ p.genero|default:"-" }}</div>
+                                <div><i class="fas fa-birthday-cake text-muted width-20"></i> {{ p.edad|default:"-" }} años</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="small text-muted">
+                                {{ p.ciudad_residencia|default:"-" }}<br>
+                                {{ p.departamento_residencia|default:"" }}
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'patient_profile' p.id %}" class="btn btn-sm btn-outline-primary">
+                                Ver Perfil <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
+                            <h5>No se encontraron pacientes</h5>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        <div class="card-footer bg-white py-3">
+            <nav>
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q_search }}">Anterior</a></li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                    {% endif %}
+                    <li class="page-item disabled"><span class="page-link border-0">Pág {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+                    {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q_search }}">Siguiente</a></li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}

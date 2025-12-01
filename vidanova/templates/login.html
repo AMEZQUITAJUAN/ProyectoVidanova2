@@ -1,15 +1,18 @@
 {% load static %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Asegúrate de tener el CSS en esta ruta -->
     <link rel="stylesheet" href="{% static 'css/login.css' %}">
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <title>Login - Vidanova</title>
 </head>
 <body>
     <div class="login-container">
-        <!-- Panel izquierdo con información -->
+        <!-- Panel izquierdo (Tu diseño original) -->
         <div class="info-panel">
             <div class="logo-section">
                 <div class="logo">
@@ -48,7 +51,7 @@
             </div>
         </div>
 
-        <!-- Panel derecho con formulario de login -->
+        <!-- Panel derecho con formulario REAL -->
         <div class="login-panel">
             <div class="login-form-container">
                 <div class="form-header">
@@ -56,28 +59,33 @@
                     <p>Accede a tu cuenta profesional</p>
                 </div>
 
-                <form id="loginForm" class="login-form">
+                <!-- FORMULARIO CONECTADO A DJANGO -->
+                <form method="post" id="loginForm" class="login-form">
+                    {% csrf_token %} <!-- Llave de seguridad obligatoria -->
+
+                    <!-- MENSAJES DE ERROR REALES -->
+                    {% if form.errors %}
+                        <div class="error-message show" style="margin-bottom: 20px;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>Usuario o contraseña incorrectos.</span>
+                        </div>
+                    {% endif %}
+
                     <div class="form-group">
-                        <label for="username">
-                            <i class="fas fa-user"></i>
-                            Usuario
-                        </label>
+                        <label for="username"><i class="fas fa-user"></i> Usuario</label>
                         <input 
                             type="text" 
                             id="username" 
                             name="username" 
                             required 
                             placeholder="Ingresa tu usuario"
-                            autocomplete="username"
+                            autofocus
                         >
                         <div class="input-border"></div>
                     </div>
 
                     <div class="form-group">
-                        <label for="password">
-                            <i class="fas fa-lock"></i>
-                            Contraseña
-                        </label>
+                        <label for="password"><i class="fas fa-lock"></i> Contraseña</label>
                         <div class="password-container">
                             <input 
                                 type="password" 
@@ -85,7 +93,6 @@
                                 name="password" 
                                 required 
                                 placeholder="Ingresa tu contraseña"
-                                autocomplete="current-password"
                             >
                             <button type="button" class="toggle-password" aria-label="Mostrar contraseña">
                                 <i class="fas fa-eye"></i>
@@ -96,14 +103,11 @@
 
                     <div class="form-options">
                         <label class="remember-me">
+                            <!-- Este input es visual por ahora, Django maneja sesiones automáticas -->
                             <input type="checkbox" name="remember">
                             <span class="checkmark"></span>
                             Recordar sesión
                         </label>
-                        
-                        <a href="#" class="forgot-password">
-                            ¿Olvidaste tu contraseña?
-                        </a>
                     </div>
 
                     <button type="submit" class="login-button">
@@ -112,35 +116,22 @@
                             <div class="spinner"></div>
                         </div>
                     </button>
-
-                    <div class="error-message" id="errorMessage">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span></span>
-                    </div>
                 </form>
 
                 <div class="help-section">
                     <p>¿Necesitas ayuda?</p>
                     <div class="help-options">
-                        <a href="#" class="help-link">
-                            <i class="fas fa-phone"></i>
-                            Soporte Técnico
-                        </a>
-                        <a href="#" class="help-link">
-                            <i class="fas fa-book"></i>
-                            Manual de Usuario
-                        </a>
+                        <a href="#" class="help-link"><i class="fas fa-phone"></i> Soporte Técnico</a>
                     </div>
                 </div>
             </div>
 
             <!-- Footer -->
             <div class="login-footer">
-                <p>&copy; 2024 Vidanova IPS. Sistema certificado para gestión oncológica.</p>
+                <p>&copy; 2025 Vidanova IPS. Sistema certificado.</p>
                 <div class="compliance-badges">
                     <span class="badge">ISO 27001</span>
                     <span class="badge">HIPAA</span>
-                    <span class="badge">SOC 2</span>
                 </div>
             </div>
         </div>
@@ -157,16 +148,14 @@
     </div>
     
     <script>
-        // JavaScript para funcionalidad del login
         document.addEventListener('DOMContentLoaded', function() {
             const loginForm = document.getElementById('loginForm');
             const togglePassword = document.querySelector('.toggle-password');
             const passwordInput = document.getElementById('password');
             const loginButton = document.querySelector('.login-button');
-            const errorMessage = document.getElementById('errorMessage');
             const loadingOverlay = document.getElementById('loadingOverlay');
 
-            // Toggle password visibility
+            // 1. Mostrar/Ocultar Contraseña
             togglePassword.addEventListener('click', function() {
                 const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
                 passwordInput.setAttribute('type', type);
@@ -176,106 +165,15 @@
                 icon.classList.toggle('fa-eye-slash');
             });
 
-            // Form submission
+            // 2. Efecto de Carga al enviar (Sin validación falsa)
             loginForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
-                
-                // Validación básica
-                if (!username || !password) {
-                    showError('Por favor, completa todos los campos');
-                    return;
-                }
-                
-                // Mostrar loading
-                showLoading();
-                
-                // Simular autenticación (aquí integrarías con tu backend)
-                setTimeout(() => {
-                    // Ejemplo de validación - reemplazar con lógica real
-                    if (validateCredentials(username, password)) {
-                        // Redirect based on user role
-                        redirectToUserDashboard(username);
-                    } else {
-                        hideLoading();
-                        showError('Credenciales incorrectas. Verifica tu usuario y contraseña.');
-                    }
-                }, 2000);
-            });
-
-            function showLoading() {
+                // NO prevenimos el default, dejamos que Django procese el envío
+                // Solo mostramos la animación visual
                 loginButton.classList.add('loading');
                 loadingOverlay.classList.add('show');
-                errorMessage.classList.remove('show');
-            }
-
-            function hideLoading() {
-                loginButton.classList.remove('loading');
-                loadingOverlay.classList.remove('show');
-            }
-
-            function showError(message) {
-                errorMessage.querySelector('span').textContent = message;
-                errorMessage.classList.add('show');
                 
-                // Auto-hide after 5 seconds
-                setTimeout(() => {
-                    errorMessage.classList.remove('show');
-                }, 5000);
-            }
-
-            function validateCredentials(username, password) {
-                // Aquí implementarías la validación real con tu backend
-                // Por ahora, usuarios de ejemplo:
-                const users = {
-                    'admin': { password: 'admin123', role: 'superadmin' },
-                    'medico1': { password: 'med123', role: 'medico' },
-                    'enfermera1': { password: 'enf123', role: 'enfermeria' },
-                    'secretaria1': { password: 'sec123', role: 'secretaria' }
-                };
-                
-                return users[username] && users[username].password === password;
-            }
-
-            function redirectToUserDashboard(username) {
-                // Aquí definirías las rutas según el rol del usuario
-                const users = {
-                    'admin': { role: 'superadmin', redirect: 'admin-dashboard.html' },
-                    'medico1': { role: 'medico', redirect: 'medico-dashboard.html' },
-                    'enfermera1': { role: 'enfermeria', redirect: 'enfermeria-dashboard.html' },
-                    'secretaria1': { role: 'secretaria', redirect: 'secretaria-dashboard.html' }
-                };
-                
-                const user = users[username];
-                if (user) {
-                    // Store user session (en producción usar tokens seguros)
-                    sessionStorage.setItem('userRole', user.role);
-                    sessionStorage.setItem('username', username);
-                    
-                    // Redirect to appropriate dashboard
-                    window.location.href = user.redirect;
-                }
-            }
-
-            // Auto-focus en el campo de usuario
-            document.getElementById('username').focus();
-
-            // Manejo de Enter en los campos
-            document.getElementById('username').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    document.getElementById('password').focus();
-                }
-            });
-
-            // Limpieza de errores al escribir
-            document.getElementById('username').addEventListener('input', function() {
-                errorMessage.classList.remove('show');
-            });
-
-            document.getElementById('password').addEventListener('input', function() {
-                errorMessage.classList.remove('show');
+                // Si el login falla, la página se recargará y Django mostrará el error.
+                // Si es exitoso, redirigirá al Dashboard.
             });
         });
     </script>

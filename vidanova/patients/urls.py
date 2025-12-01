@@ -1,7 +1,10 @@
-from rest_framework import routers
-from .views import PatientViewSet
+from django.urls import path
+from . import views
 
-router = routers.DefaultRouter()
-router.register(r'pacientes', PatientViewSet)
-
-urlpatterns = router.urls
+urlpatterns = [
+    # Ruta base: Directorio / Buscador
+    path('', views.patient_directory, name='patient_directory'),
+    
+    # Ruta detalle: Perfil 360 del paciente
+    path('perfil/<int:pk>/', views.patient_profile, name='patient_profile'),
+]

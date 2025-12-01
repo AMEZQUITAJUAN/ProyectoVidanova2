@@ -17,6 +17,7 @@
     --tran-03: all 0.3s ease;
 }
 
+
 /* Variables para MODO OSCURO */
 [data-theme="dark"] {
     --body-bg: #0f172a; /* Slate 900 */

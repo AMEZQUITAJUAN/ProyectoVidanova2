@@ -1,0 +1,98 @@
+{% extends 'layout.html' %}
+
+{% block title %}Perfil: {{ patient.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    
+    <!-- Botón Volver -->
+    <a href="{% url 'patient_directory' %}" class="btn btn-outline-secondary mb-4">
+        <i class="fas fa-arrow-left me-2"></i>Volver al Directorio
+    </a>
+
+    <div class="row g-4">
+        
+        <!-- Tarjeta de Identidad -->
+        <div class="col-md-12">
+            <div class="card shadow-sm border-0 bg-white">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center flex-wrap gap-4">
+                        <div class="text-center">
+                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                <i class="bx bxs-user fs-1 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h2 class="fw-bold mb-1">{{ patient.nombre_completo }}</h2>
+                            <div class="d-flex gap-3 text-muted">
+                                <span><i class="far fa-id-card me-1"></i> {{ patient.tipo_documento }} {{ patient.numero_documento }}</span>
+                                <span><i class="fas fa-birthday-cake me-1"></i> {{ patient.edad|default:"?" }} años</span>
+                                <span><i class="fas fa-venus-mars me-1"></i> {{ patient.genero|default:"?" }}</span>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <a href="{% url 'agregar_followup' patient.id %}" class="btn btn-success">
+                                <i class="fas fa-plus me-2"></i>Nuevo Seguimiento
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial de Seguimientos -->
+        <div class="col-md-12">
+            <h5 class="fw-bold text-primary mb-3"><i class="fas fa-history me-2"></i>Historial de Atenciones</h5>
+            
+            <div class="card shadow-sm border-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha Solicitud</th>
+                                <th>Procedimiento</th>
+                                <th>EPS</th>
+                                <th>Estado</th>
+                                <th>Observación</th>
+                                <th class="text-end">Detalle</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for f in history %}
+                            <tr>
+                                <td>{{ f.fecha_solicitud_cita|date:"d/m/Y" }}</td>
+                                <td>
+                                    <span class="fw-bold text-dark">{{ f.tipo_procedimiento }}</span>
+                                    <div class="small text-muted">{{ f.cups|default:"" }}</div>
+                                </td>
+                                <td>{{ f.entidad_aseguradora|default:"-" }}</td>
+                                <td>
+                                    {% if "REALIZADO" in f.estado_solicitud|upper %}
+                                        <span class="badge bg-success">REALIZADO</span>
+                                    {% elif "PENDIENTE" in f.estado_solicitud|upper %}
+                                        <span class="badge bg-warning text-dark">PENDIENTE</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ f.estado_solicitud }}</span>
+                                    {% endif %}
+                                </td>
+                                <td style="max-width: 200px;" class="text-truncate">{{ f.observaciones|default:"-" }}</td>
+                                <td class="text-end">
+                                    <a href="{% url 'followup_detail' f.id %}" class="btn btn-sm btn-light border">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">Este paciente no tiene seguimientos registrados.</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

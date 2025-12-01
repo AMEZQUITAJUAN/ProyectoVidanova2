@@ -3,15 +3,23 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from . import views as view
+from django.contrib.auth import views as auth_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', view.login, name='login'),
-    path('api/', include('patients.urls')), # /api/pacientes
-    path('api/tratamientos/', include('treatments.urls')),
-    path('api/autorizaciones/', include('authorizations.urls')),
-    path('seguimiento/', include('followups.urls')),
+    
+    # RUTA DE LOGIN (Usando tu diseño)
+    path('', auth_views.LoginView.as_view(
+        template_name='login.html', 
+        redirect_authenticated_user=True # Si ya está logueado, lo manda al dashboard
+    ), name='login'),
+    
+    # RUTA DE LOGOUT
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 
+    # APPS
+    path('pacientes/', include('patients.urls')),
+    path('seguimiento/', include('followups.urls')),
 ]
 
 if settings.DEBUG:
