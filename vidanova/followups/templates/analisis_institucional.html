@@ -7,23 +7,23 @@
     <!-- Encabezado -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="text-primary fw-bold mb-0">Análisis Demográfico y Operativo</h2>
-            <p class="text-muted">Vista global de la población oncológica gestionada.</p>
+            <h2 class="text-primary fw-bold mb-0">Análisis Gerencial</h2>
+            <p class="text-muted">Indicadores estratégicos de población, aseguramiento y barreras.</p>
         </div>
         <div class="text-end">
             <span class="badge bg-primary fs-5">{{ rows }} Registros Totales</span>
         </div>
     </div>
 
-    <!-- Grid de Gráficas -->
-    <div class="row g-4">
+    <!-- FILA 1: Demografía y Barreras -->
+    <div class="row g-4 mb-4">
         
         <!-- 1. Distribución por Género -->
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card shadow h-100">
-                <div class="card-header bg-white fw-bold">Distribución por Género</div>
+                <div class="card-header bg-white fw-bold text-center">Género</div>
                 <div class="card-body">
-                    <div style="height: 250px;">
+                    <div style="height: 200px;">
                         <canvas id="genderChart"></canvas>
                     </div>
                 </div>
@@ -35,32 +35,38 @@
             <div class="card shadow h-100">
                 <div class="card-header bg-white fw-bold">Rangos de Edad</div>
                 <div class="card-body">
-                    <div style="height: 250px;">
+                    <div style="height: 200px;">
                         <canvas id="ageChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 3. Estado de Solicitudes -->
-        <div class="col-md-4">
-            <div class="card shadow h-100">
-                <div class="card-header bg-white fw-bold">Estado General</div>
+        <!-- 3. TOP BARRERAS (NUEVO) -->
+        <div class="col-md-5">
+            <div class="card shadow h-100 border-danger">
+                <div class="card-header bg-danger text-white fw-bold">
+                    <i class="fas fa-exclamation-circle me-2"></i>Top Barreras de Acceso
+                </div>
                 <div class="card-body">
-                    <div style="height: 250px;">
-                        <canvas id="stateChart"></canvas>
+                    <div style="height: 200px;">
+                        <canvas id="barrierChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- 4. Procedimientos (Antes Diagnóstico) -->
+    <!-- FILA 2: Negocio y Tendencias -->
+    <div class="row g-4">
+        
+        <!-- 4. TOP ASEGURADORAS (EPS) (NUEVO) -->
         <div class="col-md-6">
             <div class="card shadow h-100">
-                <div class="card-header bg-white fw-bold">Top Procedimientos Solicitados</div>
+                <div class="card-header bg-white fw-bold">Top 10 Aseguradoras (Volumen)</div>
                 <div class="card-body">
                     <div style="height: 300px;">
-                        <canvas id="diagChart"></canvas>
+                        <canvas id="epsChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -69,7 +75,7 @@
         <!-- 5. Volumen Mensual -->
         <div class="col-md-6">
             <div class="card shadow h-100">
-                <div class="card-header bg-white fw-bold">Volumen de Solicitudes por Mes</div>
+                <div class="card-header bg-white fw-bold">Tendencia de Solicitudes (Mensual)</div>
                 <div class="card-body">
                     <div style="height: 300px;">
                         <canvas id="countChart"></canvas>
@@ -89,31 +95,29 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
-    // Recuperamos los datos enviados desde Django (ya vienen como JSON string)
-    // Nota: Como usamos json.dumps en Python, aquí llegan directo, no necesitamos 'escapejs' complejo
+    // Datos desde Django
     const genderLabels = {{ gender_labels|safe }};
     const genderValues = {{ gender_values|safe }};
-
+    
     const ageLabels = {{ age_labels|safe }};
     const ageValues = {{ age_values|safe }};
-
-    const stateLabels = {{ state_labels|safe }};
-    const stateValues = {{ state_values|safe }};
-
-    const diagLabels = {{ diag_labels|safe }};
-    const diagValues = {{ diag_values|safe }};
-
+    
+    const epsLabels = {{ eps_labels|safe }};
+    const epsValues = {{ eps_values|safe }};
+    
+    const barrierLabels = {{ barrier_labels|safe }};
+    const barrierValues = {{ barrier_values|safe }};
+    
     const monthLabels = {{ month_labels|safe }};
     const cntValues = {{ cnt_values|safe }};
 
-    // Configuración Común
     const commonOptions = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { position: 'bottom' } }
     };
 
-    // 1. Género (Doughnut)
+    // 1. Género
     new Chart(document.getElementById('genderChart'), {
         type: 'doughnut',
         data: {
@@ -123,10 +127,10 @@
                 backgroundColor: ['#3b82f6', '#ec4899', '#9ca3af']
             }]
         },
-        options: commonOptions
+        options: { ...commonOptions, plugins: { legend: { position: 'right' } } }
     });
 
-    // 2. Edad (Bar Vertical)
+    // 2. Edad
     new Chart(document.getElementById('ageChart'), {
         type: 'bar',
         data: {
@@ -140,47 +144,54 @@
         options: commonOptions
     });
 
-    // 3. Estados (Pie)
-    new Chart(document.getElementById('stateChart'), {
-        type: 'pie',
-        data: {
-            labels: stateLabels,
-            datasets: [{
-                data: stateValues,
-                backgroundColor: ['#22c55e', '#f59e0b', '#3b82f6', '#ef4444', '#64748b']
-            }]
-        },
-        options: commonOptions
-    });
-
-    // 4. Procedimientos (Bar Horizontal)
-    new Chart(document.getElementById('diagChart'), {
+    // 3. Barreras (Horizontal Rojo)
+    new Chart(document.getElementById('barrierChart'), {
         type: 'bar',
         data: {
-            labels: diagLabels,
+            labels: barrierLabels,
             datasets: [{
-                label: 'Cantidad',
-                data: diagValues,
-                backgroundColor: '#0ea5e9',
+                label: 'Casos Bloqueados',
+                data: barrierValues,
+                backgroundColor: '#ef4444',
                 borderRadius: 4
             }]
         },
         options: {
             ...commonOptions,
-            indexAxis: 'y', // Hace las barras horizontales
+            indexAxis: 'y',
+            plugins: { legend: { display: false } }
         }
     });
 
-    // 5. Volumen Mensual (Line)
+    // 4. EPS (Horizontal Verde)
+    new Chart(document.getElementById('epsChart'), {
+        type: 'bar',
+        data: {
+            labels: epsLabels,
+            datasets: [{
+                label: 'Total Solicitudes',
+                data: epsValues,
+                backgroundColor: '#10b981',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            ...commonOptions,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // 5. Tendencia
     new Chart(document.getElementById('countChart'), {
         type: 'line',
         data: {
             labels: monthLabels,
             datasets: [{
-                label: 'Solicitudes',
+                label: 'Solicitudes Nuevas',
                 data: cntValues,
-                borderColor: '#22c55e',
-                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 fill: true,
                 tension: 0.3
             }]

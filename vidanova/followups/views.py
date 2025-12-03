@@ -27,13 +27,13 @@ def followup_dashboard(request):
     # 1. Queryset Base
     queryset = FollowUp.objects.select_related('patient').all().order_by('-fecha_solicitud_cita', '-id')
 
-    # 2. Captura de Filtros (Nuevos: eps, barrier)
+    # 2. Captura de Filtros
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     status = request.GET.get('status')
     procedure = request.GET.get('procedure')
-    eps = request.GET.get('eps')          # <--- NUEVO
-    barrier = request.GET.get('barrier')  # <--- NUEVO
+    eps = request.GET.get('eps')
+    barrier = request.GET.get('barrier')
     q_search = request.GET.get('q')
 
     # 3. Aplicación de Filtros
@@ -43,7 +43,7 @@ def followup_dashboard(request):
     if status: queryset = queryset.filter(estado_solicitud__icontains=status)
     if procedure: queryset = queryset.filter(tipo_procedimiento__icontains=procedure)
     
-    # Filtros Exactos para Dropdown (Usamos exact para coincidir con la lista desplegable)
+    # Filtros Exactos
     if eps: queryset = queryset.filter(entidad_aseguradora=eps)
     if barrier: queryset = queryset.filter(barrera=barrier)
     
@@ -58,33 +58,43 @@ def followup_dashboard(request):
         )
 
     # 4. Obtener Opciones para los Selectores (Distinct Values)
-    # Traemos valores únicos de la BD para llenar los <select> automáticamente
     eps_options = FollowUp.objects.exclude(entidad_aseguradora__isnull=True)\
         .exclude(entidad_aseguradora='').values_list('entidad_aseguradora', flat=True).distinct().order_by('entidad_aseguradora')
         
     barrier_options = FollowUp.objects.exclude(barrera__isnull=True)\
         .exclude(barrera='').values_list('barrera', flat=True).distinct().order_by('barrera')
 
-    # 5. KPIs y Stats (Mismo código de antes)
+    # 5. KPIs y Estadísticas Avanzadas
+    # A. Total GLOBAL (Sin filtros) para calcular el porcentaje real
+    grand_total = FollowUp.objects.count()
+
+    # B. Total FILTRADO (El que ve el usuario)
+    total_registros_filtrados = queryset.count()
+
+    # C. Cálculo de Porcentaje Global
+    pct_global = 0
+    if grand_total > 0:
+        pct_global = round((total_registros_filtrados / grand_total) * 100, 1)
+
+    # D. Cálculo de Pendientes (sobre lo filtrado)
     kpi_status = compute_request_status_from_db(queryset)
     kpi_procedure = compute_opportunity_by_procedure(queryset)
     kpi_barriers = compute_barriers(queryset)
 
+    pct_pendientes = 0
+    if total_registros_filtrados > 0:
+        pct_pendientes = round((kpi_status['pendientes'] / total_registros_filtrados) * 100, 1)
+
+    # E. Cálculo de Promedio Días (sobre lo filtrado)
     realizados = queryset.filter(estado_solicitud__icontains='REALIZADO', fecha_cita__isnull=False, fecha_solicitud_cita__isnull=False)
-    dias_list = []
-    for r in realizados:
-        if r.dias_diff is not None and r.dias_diff >= 0:
-            dias_list.append(r.dias_diff)
-            
+    dias_list = [r.dias_diff for r in realizados if r.dias_diff is not None and r.dias_diff >= 0]
     promedio = round(sum(dias_list) / len(dias_list), 1) if dias_list else 0
 
-    total_registros = queryset.count()
-    pct_pendientes = 0
-    if total_registros > 0:
-        pct_pendientes = round((kpi_status['pendientes'] / total_registros) * 100, 1)
-
+    # Diccionario Final de Estadísticas
     stats = {
-        'total': total_registros,
+        'total': total_registros_filtrados,   # Número grande (Filtrado)
+        'pct_global': pct_global,             # Porcentaje vs Base Total
+        'grand_total': grand_total,           
         'completados': kpi_status['completados'],
         'pendientes': kpi_status['pendientes'],
         'porcentaje_completado': kpi_status['porcentaje_completado'],
@@ -92,7 +102,7 @@ def followup_dashboard(request):
         'promedio_dias': promedio
     }
 
-    # Paginación
+    # 6. Paginación
     per_page = request.GET.get('per_page', 25)
     try: per_page = int(per_page)
     except ValueError: per_page = 25
@@ -107,8 +117,8 @@ def followup_dashboard(request):
         'filtros': request.GET,
         'stats': stats,
         # Listas para Dropdowns
-        'eps_options': eps_options,       # <--- ENVIAMOS AL HTML
-        'barrier_options': barrier_options, # <--- ENVIAMOS AL HTML
+        'eps_options': eps_options,       
+        'barrier_options': barrier_options,
         # Gráficas
         'estado_procedimiento_labels': kpi_status['labels'],
         'estado_procedimiento_values': kpi_status['values'],

@@ -155,42 +155,71 @@
         </section>
 
         <!-- KPI GRID (Estilo Original Recuperado + Datos Reales) -->
+        <!-- ESTILOS EXTRA PARA TARJETAS INTERACTIVAS -->
+        <style>
+            .card-link {
+                text-decoration: none;
+                color: inherit;
+                display: block;
+                height: 100%;
+            }
+            .card-hover {
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+                cursor: pointer;
+            }
+            .card-hover:hover {
+                transform: translateY(-5px); /* Efecto de levantar */
+                box-shadow: 0 10px 20px rgba(0,0,0,0.15) !important;
+            }
+        </style>
+
+        <!-- KPI GRID (INTERACTIVO) -->
         <section class="section">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
                 
-                <!-- Total -->
-                <div class="card" style="text-align: center; border-top: 4px solid #3b82f6;">
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Total Seguimientos</div>
-                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.total }}</div>
-                    <div style="font-size: 12px; color: #6b7280;">100%</div>
-                </div>
-
-                <!-- Completados -->
-                <div class="card" style="text-align: center; border-top: 4px solid #10b981;">
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Completados</div>
-                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.completados }}</div>
-                    <div style="font-size: 12px; color: #6b7280;">{{ stats.porcentaje_completado }}%</div>
-                </div>
-
-                <!-- Pendientes -->
-                <div class="card" style="text-align: center; border-top: 4px solid #f59e0b;">
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Pendientes</div>
-                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.pendientes }}</div>
-                    
-                    <!-- AQUÍ MOSTRAMOS EL PORCENTAJE FUNCIONAL -->
-                    <div style="font-size: 12px; color: #6b7280;">
-                        <strong>{{ stats.porcentaje_pendientes }}%</strong>
+                <!-- 1. TOTAL -> Resetea filtros -->
+                <a href="{% url 'followup_dashboard' %}" class="card-link" title="Ver Todos (Limpiar Filtros)">
+                    <div class="card card-hover h-100" style="text-align: center; border-top: 4px solid #3b82f6;">
+                        <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Total Filtrado</div>
+                        <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.total }}</div>
+                        
+                        <!-- AQUÍ ESTÁ EL CAMBIO: Muestra el % respecto al total global -->
+                        <div style="font-size: 12px; color: #6b7280;">
+                            <strong>{{ stats.pct_global }}%</strong> de la Base de Datos
+                        </div>
                     </div>
-                </div>
+                </a>
 
-                <!-- Promedio Días -->
-                <div class="card" style="text-align: center; border-top: 4px solid #8b5cf6;">
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Promedio Días</div>
-                    <div style="font-size: 36px; font-weight: bold; color: #1f2937;">
-                        {{ stats.promedio_dias|default:"-" }}
+                <!-- 2. COMPLETADOS -> Filtra por REALIZADO -->
+                <a href="?status=REALIZADO" class="card-link" title="Filtrar Realizados">
+                    <div class="card card-hover h-100" style="text-align: center; border-top: 4px solid #10b981;">
+                        <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Completados</div>
+                        <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.completados }}</div>
+                        <div style="font-size: 12px; color: #6b7280;">{{ stats.porcentaje_completado }}% Efectividad</div>
                     </div>
-                    <div style="font-size: 12px; color: #6b7280;">Entre sesiones</div>
-                </div>
+                </a>
+
+                <!-- 3. PENDIENTES -> Filtra por PENDIENTE -->
+                <a href="?status=PENDIENTE" class="card-link" title="Filtrar Pendientes">
+                    <div class="card card-hover h-100" style="text-align: center; border-top: 4px solid #f59e0b;">
+                        <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Pendientes</div>
+                        <div style="font-size: 36px; font-weight: bold; color: #1f2937;">{{ stats.pendientes }}</div>
+                        <div style="font-size: 12px; color: #6b7280;">
+                            <strong>{{ stats.porcentaje_pendientes }}%</strong> del total
+                        </div>
+                    </div>
+                </a>
+
+                <!-- 4. PROMEDIO -> Filtra Realizados (porque de ahí sale el promedio) -->
+                <a href="?status=REALIZADO" class="card-link" title="Ver Casos Cerrados">
+                    <div class="card card-hover h-100" style="text-align: center; border-top: 4px solid #8b5cf6;">
+                        <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Promedio Días</div>
+                        <div style="font-size: 36px; font-weight: bold; color: #1f2937;">
+                            {{ stats.promedio_dias|default:"-" }}
+                        </div>
+                        <div style="font-size: 12px; color: #6b7280;">Entre solicitud y cita</div>
+                    </div>
+                </a>
             </div>
         </section>
 

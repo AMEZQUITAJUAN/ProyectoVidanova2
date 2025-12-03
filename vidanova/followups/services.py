@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import json
 import re
+import warnings
 from datetime import date, datetime
 from django.db import transaction
 from django.conf import settings
@@ -12,7 +13,7 @@ from django.db.models.functions import TruncMonth
 from patients.models import Patient
 from .models import FollowUp
 
-# --- 1. UTILIDADES ---
+# --- 1. UTILIDADES BÁSICAS (ESTO NO FALLA) ---
 
 def normalize_text(text):
     if not isinstance(text, str): return str(text) if text is not None else ""
@@ -22,176 +23,267 @@ def normalize_text(text):
     return text
 
 def normalize_header(text):
-    return normalize_text(text).replace(" ", "_").replace(".", "").replace("\n", "")
+    """
+    Normalización simple: quita tildes, pasa a minúsculas y cambia espacios por guiones bajos.
+    Ej: "Número de Identificación" -> "numero_de_identificacion"
+    """
+    clean = normalize_text(text)
+    clean = re.sub(r'[^a-z0-9]', '_', clean) # Solo letras y números
+    clean = re.sub(r'_+', '_', clean) # No guiones dobles
+    return clean.strip('_')
 
 def limpiar_dato(val):
     if pd.isna(val) or val is None or val == "": return None
     texto = str(val).strip()
     if texto.endswith('.0'): texto = texto[:-2]
-    nulos = ['nan', 'nat', 'none', 'null', '0', 'na', '#n/a', 'sin dato']
+    nulos = ['nan', 'nat', 'none', 'null', '0', 'na', '#n/a', 'sin dato', 'no aplica']
     if texto.lower() in nulos: return None
     return texto
 
 def parse_date(date_val):
+    """Parsea fechas ignorando la hora (ej: 8:17)"""
     if pd.isna(date_val): return None
     if isinstance(date_val, (datetime, pd.Timestamp)): return date_val.date()
+    
     s = str(date_val).strip()
     if not s or s.lower() in ['nan', 'nat', '']: return None
-    if " " in s: s = s.split(" ")[0]
-    try:
-        if re.match(r'^\d{4}-\d{1,2}-\d{1,2}', s): return pd.to_datetime(s).date()
-        return pd.to_datetime(s, dayfirst=True).date()
-    except: return None
 
-# --- 2. LECTURA Y CARGA ---
+    # Quitar hora (divide por espacio o T y toma la primera parte)
+    s_clean = re.split(r'[ T]', s)[0]
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        try:
+            return pd.to_datetime(s_clean, dayfirst=True).date()
+        except:
+            return None
+
+# --- 2. LECTURA DE ARCHIVO (ESTRATEGIA CLÁSICA + DIAGNÓSTICO) ---
 
 def leer_archivo_inteligente(file_path):
+    print(f"\n--- [DIAGNÓSTICO] Leyendo: {os.path.basename(file_path)} ---")
+    df = None
+    
+    # 1. Lectura robusta (CSV vs Excel)
     try:
         if file_path.endswith('.csv'):
-            try: df = pd.read_csv(file_path, sep=None, engine='python', dtype=str, encoding='utf-8')
-            except: df = pd.read_csv(file_path, sep=';', dtype=str, encoding='latin-1')
-        else: df = pd.read_excel(file_path, dtype=str)
-    except Exception as e: return None, f"Error archivo: {str(e)}"
+            # Intentamos detectar separador automáticamente
+            try: 
+                df = pd.read_csv(file_path, sep=None, engine='python', dtype=str, encoding='utf-8')
+                print("-> Leído como CSV (utf-8, auto)")
+            except: 
+                # Si falla, probamos latin-1 (común en SIISA)
+                try: 
+                    df = pd.read_csv(file_path, sep=None, engine='python', dtype=str, encoding='latin-1')
+                    print("-> Leído como CSV (latin-1, auto)")
+                except:
+                    df = pd.read_csv(file_path, sep=';', dtype=str, encoding='latin-1')
+        else:
+            df = pd.read_excel(file_path, dtype=str)
+            print("-> Leído como Excel")
+    except Exception as e:
+        return None, f"Error archivo: {str(e)}"
 
     if df is None or df.empty: return None, "Archivo vacío"
 
-    raw_columns = [normalize_header(c) for c in df.columns]
-    cols_obligatorias = ['identificacion', 'cedula', 'numero_documento', 'tipo_de_identificacion']
+    # 2. HEADER HUNTER (CORREGIDO PARA NO CONFUNDIR DATOS)
+    sample_rows = 20
     header_idx = -1
     
-    if any(c in raw_columns for c in cols_obligatorias): df.columns = raw_columns
-    else:
-        for i in range(min(15, len(df))):
-            fila = df.iloc[i].astype(str).tolist()
-            fila_norm = [normalize_header(x) for x in fila]
-            if any(c in fila_norm for c in cols_obligatorias):
-                header_idx = i
-                df.columns = fila_norm
-                df = df.iloc[i+1:].reset_index(drop=True)
-                break
-        if header_idx == -1: df.columns = raw_columns
+    # PALABRAS CLAVE ESTRUCTURALES (Que solo están en títulos, no en datos)
+    # Quitamos 'cedula' porque aparece en los datos como "Cedula de Ciudadania"
+    keywords = [
+        'identificaci', # "Tipo de Identificacion"
+        'numero_de_ic', # Específico de Andrea
+        'nota',         # "Numero Nota" (Andrea)
+        'sede',         # "Sede" (Andrea)
+        'apellidos',    # Estructura
+        'nombres',      # Estructura
+        'aseguradora',  # Estructura
+        'nacimiento',   # Estructura
+        'telefono'      # Estructura
+    ]
+
+    print(f"-> Buscando cabecera (evitando datos)...")
+
+    for i in range(min(sample_rows, len(df))):
+        raw_row = df.iloc[i].astype(str).tolist()
+        row_norm = [normalize_header(x) for x in raw_row]
+        
+        matches = 0
+        for cell in row_norm:
+            # Buscamos coincidencias exactas o parciales fuertes
+            for k in keywords:
+                if k in cell:
+                    matches += 1
+                    break # Solo cuenta 1 match por celda
+        
+        # DEBUG: Para ver qué fila está ganando
+        # print(f"Fila {i}: {matches} coincidencias -> {row_norm[:2]}")
+
+        # Necesitamos al menos 2 coincidencias fuertes de TÍTULOS
+        if matches >= 2:
+            header_idx = i
+            print(f"✅ CABECERA DETECTADA EN FILA {i} (Coincidencias: {matches})")
+            
+            # Asignar cabecera
+            df.columns = df.iloc[i].astype(str).tolist()
+            # Datos empiezan en la siguiente
+            df = df.iloc[i+1:].reset_index(drop=True)
+            break
+            
+    if header_idx == -1:
+        print("⚠️ ALERTA: No se detectó cabecera con palabras clave. Usando Fila 0.")
+        df.columns = [normalize_header(str(c)) for c in df.columns]
+
+    # Limpieza final
+    initial_len = len(df)
     df.dropna(how='all', inplace=True)
+    
+    # MOSTRAR LO QUE DETECTÓ (Vital para nosotros)
+    cols_clean = [normalize_header(str(c)) for c in df.columns]
+    print(f"-> Primeras columnas detectadas: {cols_clean[:5]}...")
+    
     return df, None
+
+# --- 3. PROCESAMIENTO (MAPEO MANUAL) ---
 
 def importar_archivo_masivo(file_path):
     df, error = leer_archivo_inteligente(file_path)
     if error: return {"error": error}
 
+    # Normalizamos los encabezados del DF para comparar fácil
+    df.columns = [normalize_header(c) for c in df.columns]
+
+    # MAPEO MANUAL (Aquí agregamos las columnas de Andrea)
     column_mapping = {
-        'numero_documento': ['identificacion', 'cedula', 'numero_documento', 'documento'],
-        'tipo_documento': ['tipo_de_identificacion', 'tipo_identificacion'],
+        'numero_documento': [
+            'identificacion', 'cedula', 'numero_documento', 'documento', 
+            'numero_de_ic', # <--- ANDREA (Corte de "Numero de Identificacion")
+            'numero_de_identificaci' 
+        ],
+        'tipo_documento': [
+            'tipo_de_identificacion', 'tipo_identificacion',
+            'tipo_de_identificaci' # <--- ANDREA
+        ],
         
-        # --- LECTURA EXPLÍCITA DE NOMBRES ---
-        'n1': ['nombre_1', 'primer_nombre'], 
-        'n2': ['nombre_2', 'segundo_nombre'], 
-        'a1': ['apellido_1', 'primer_apellido'], 
+        # Nombres (Andrea tiene N1, N2...)
+        'n1': ['nombre_1', 'primer_nombre', 'nombre_1_ic_nombre_1'], # A veces se pegan
+        'n2': ['nombre_2', 'segundo_nombre'],
+        'a1': ['apellido_1', 'primer_apellido'],
         'a2': ['apellido_2', 'segundo_apellido'],
-        
         'nombre_completo': ['nombre_completo', 'paciente', 'nombres_y_apellidos'],
-        'genero': ['genero', 'sexo'], 'edad': ['edad'],
-        'fecha_solicitud_cita': ['fecha_de_solicitud_de_cita', 'fecha_solicitud', 'fecha_radicacion'],
-        'fecha_cita': ['fecha_de_cita', 'fecha_cita', 'f_cita'],
-        'fecha_captacion': ['fecha_de__captacion', 'fecha_captacion'], 
-        'estado_solicitud': ['estado_de_solicitud', 'estado', 'status'],
+        
+        # Fechas
+        'fecha_solicitud_cita': [
+            'fecha_de_solicitud_de_cita', 'fecha_solicitud', 
+            'fecha_de_creaci', # <--- ANDREA ("Fecha de Creación" cortado)
+            'fecha_de_creacion',
+            'numero_solicitud' # A veces la fecha está cerca
+        ],
+        'fecha_cita': ['fecha_de_cita', 'fecha_cita', 'fecha_asignada'],
+        'fecha_captacion': ['fecha_de_captacion', 'fecha_captacion'],
+        
+        # Datos
+        'estado_solicitud': ['estado_de_solicitud', 'estado', 'estado_asist', 'estado_adm'], # <--- ANDREA
         'tipo_procedimiento': ['tipo_de_procedimiento', 'procedimiento', 'servicio'],
-        'barrera': ['barrera'], 'observaciones': ['observaciones'],
-        'entidad_aseguradora': ['entidad_asegurdora', 'entidad_aseguradora', 'eps'],
-        'cups': ['cups'], 'ruta': ['ruta']
+        'barrera': ['barrera'],
+        'observaciones': ['observaciones', 'observacion'],
+        'entidad_aseguradora': ['entidad_aseguradora', 'entidad_asegurdora', 'eps'],
+        'cups': ['cups'], 
+        'ruta': ['ruta']
     }
 
+    # Renombrar columnas
     rename_dict = {}
-    cols_act = df.columns
-    for std, aliases in column_mapping.items():
+    cols_actuales = df.columns
+    
+    for standard, aliases in column_mapping.items():
         for alias in aliases:
-            if alias in cols_act:
-                rename_dict[alias] = std
-                break
+            if alias in cols_actuales:
+                rename_dict[alias] = standard
+                break # Encontrado, siguiente campo
+            # Búsqueda parcial si no es exacto
+            else:
+                for col in cols_actuales:
+                    if alias in col and standard not in rename_dict.values():
+                        rename_dict[col] = standard
+                        break
+    
     df.rename(columns=rename_dict, inplace=True)
 
-    if 'numero_documento' not in df.columns: return {"error": "Falta columna Identificación"}
+    # Validar
+    if 'numero_documento' not in df.columns:
+        return {"error": f"Falta columna Identificación. Se detectó: {list(df.columns[:5])}"}
 
-    # 1. PACIENTES
+    # --- LÓGICA DE GUARDADO (La que funcionaba bien) ---
+    
     docs = set(df['numero_documento'].dropna().apply(limpiar_dato).unique())
-    docs.discard(None)
     existing_p = Patient.objects.filter(numero_documento__in=docs).values('id', 'numero_documento')
     pmap = {p['numero_documento']: p['id'] for p in existing_p}
     
-    new_p_objs = []
-    update_p_objs = []
-    processed_docs = set()
+    new_ps, update_ps = [], []
+    processed_p = set()
 
     for row in df.itertuples(index=False):
         doc = limpiar_dato(getattr(row, 'numero_documento', None))
-        if not doc or doc in processed_docs: continue
+        if not doc or doc in processed_p: continue
         
+        # Datos
         gen = limpiar_dato(getattr(row, 'genero', None))
         try: edad = int(float(getattr(row, 'edad', 0)))
         except: edad = None
         
-        # --- LOGICA CORREGIDA DE NOMBRES ---
-        # Leemos cada columna por separado
         n1 = limpiar_dato(getattr(row, 'n1', None))
         n2 = limpiar_dato(getattr(row, 'n2', None))
         a1 = limpiar_dato(getattr(row, 'a1', None))
         a2 = limpiar_dato(getattr(row, 'a2', None))
+        full = limpiar_dato(getattr(row, 'nombre_completo', None))
         
-        # Fallback: Si no hay columnas separadas, buscamos nombre completo
-        full_backup = limpiar_dato(getattr(row, 'nombre_completo', None))
-        
-        # Asignación final (Si n1 está vacío, usamos el full_backup como parche)
-        final_n1 = n1 if n1 else (full_backup if full_backup else "PACIENTE")
-        final_n2 = n2
-        final_a1 = a1 if a1 else "" 
-        final_a2 = a2
+        # Prioridad Nombres
+        vn1 = n1 if n1 else (full if full else "PACIENTE")
+        va1 = a1 if a1 else ""
 
         if doc in pmap:
-            # ACTUALIZAR: Forzamos la actualización de nombres
+            # Update
             p = Patient(id=pmap[doc])
-            p.nombre_1 = final_n1.upper()[:99]
-            p.nombre_2 = final_n2.upper()[:99] if final_n2 else None
-            p.apellido_1 = final_a1.upper()[:99]
-            p.apellido_2 = final_a2.upper()[:99] if final_a2 else None
-            p.genero = gen
-            p.edad = edad
-            update_p_objs.append(p)
+            if vn1 != "PACIENTE": p.nombre_1 = vn1.upper()[:99]
+            if n2: p.nombre_2 = n2.upper()[:99]
+            if va1: p.apellido_1 = va1.upper()[:99]
+            if a2: p.apellido_2 = a2.upper()[:99]
+            if gen: p.genero = gen
+            if edad: p.edad = edad
+            update_ps.append(p)
         else:
-            # CREAR
-            new_p_objs.append(Patient(
-                numero_documento=doc, nombre_1=final_n1.upper()[:99], 
-                nombre_2=final_n2.upper()[:99] if final_n2 else None,
-                apellido_1=final_a1.upper()[:99],
-                apellido_2=final_a2.upper()[:99] if final_a2 else None,
-                tipo_documento='CC', genero=gen, edad=edad
+            # Create
+            new_ps.append(Patient(
+                numero_documento=doc, tipo_documento='CC',
+                nombre_1=vn1.upper()[:99], nombre_2=n2.upper()[:99] if n2 else None,
+                apellido_1=va1.upper()[:99], apellido_2=a2.upper()[:99] if a2 else None,
+                genero=gen, edad=edad
             ))
-        
-        processed_docs.add(doc)
+        processed_p.add(doc)
 
-    if new_p_objs:
-        Patient.objects.bulk_create(new_p_objs, batch_size=500, ignore_conflicts=True)
-        # Recargar mapa
-        existing_p = Patient.objects.filter(numero_documento__in=docs).values('id', 'numero_documento')
-        pmap = {p['numero_documento']: p['id'] for p in existing_p}
+    if new_ps:
+        Patient.objects.bulk_create(new_ps, batch_size=500, ignore_conflicts=True)
+        new_db = Patient.objects.filter(numero_documento__in=docs).values('id', 'numero_documento')
+        for p in new_db: pmap[p['numero_documento']] = p['id']
     
-    if update_p_objs:
-        # AQUÍ ESTABA EL ERROR: Ahora incluimos los nombres en la actualización
-        Patient.objects.bulk_update(
-            update_p_objs, 
-            ['nombre_1', 'nombre_2', 'apellido_1', 'apellido_2', 'genero', 'edad'], 
-            batch_size=500
-        )
+    if update_ps:
+        Patient.objects.bulk_update(update_ps, ['nombre_1','nombre_2','apellido_1','apellido_2','genero','edad'], batch_size=500)
 
-    # 2. SEGUIMIENTOS
-    ids = list(pmap.values())
-    existing_f = FollowUp.objects.filter(patient_id__in=ids).values('id', 'patient_id', 'fecha_solicitud_cita', 'tipo_procedimiento')
+    # SEGUIMIENTOS
+    new_fs = []
     
-    sig_map = {}
-    for f in existing_f:
-        d_str = str(f['fecha_solicitud_cita']) if f['fecha_solicitud_cita'] else "SIN_FECHA"
-        proc = normalize_text(f['tipo_procedimiento'])
-        sig_map[(f['patient_id'], d_str, proc)] = f['id']
+    # Cache para evitar duplicados
+    existing_sigs = set()
+    if pmap:
+        db_sigs = FollowUp.objects.filter(patient_id__in=pmap.values()).values_list('patient_id', 'fecha_solicitud_cita', 'tipo_procedimiento')
+        for s in db_sigs:
+            d_str = str(s[1]) if s[1] else "None"
+            existing_sigs.add((s[0], d_str, normalize_text(s[2] or "")))
 
-    create_list = []
-    update_list = []
+    print("-> Procesando Seguimientos...")
     
     for row in df.itertuples(index=False):
         doc = limpiar_dato(getattr(row, 'numero_documento', None))
@@ -199,77 +291,53 @@ def importar_archivo_masivo(file_path):
         if not pid: continue
 
         d_sol = parse_date(getattr(row, 'fecha_solicitud_cita', None))
+        # Fallback de fecha
         if not d_sol: d_sol = parse_date(getattr(row, 'fecha_captacion', None))
-        d_sol_str = str(d_sol) if d_sol else "SIN_FECHA"
-        d_cita = parse_date(getattr(row, 'fecha_cita', None))
         
-        proc_raw = limpiar_dato(getattr(row, 'tipo_procedimiento', None)) or 'CONSULTA'
-        proc_norm = normalize_text(proc_raw)
+        d_sol_str = str(d_sol) if d_sol else "None"
+        proc = normalize_text(limpiar_dato(getattr(row, 'tipo_procedimiento', None)) or "CONSULTA")
+        
+        sig = (pid, d_sol_str, proc)
+        
+        if sig in existing_sigs: continue # Ya existe
 
+        # Estado
         est_raw = normalize_text(getattr(row, 'estado_solicitud', 'PENDIENTE'))
         estado = 'PENDIENTE'
         if 'realiz' in est_raw or 'efectiv' in est_raw: estado = 'REALIZADO'
-        elif 'agen' in est_raw or 'asig' in est_raw: estado = 'AGENDADO'
-        elif 'cancel' in est_raw or 'no pgp' in est_raw: estado = 'CANCELADO'
+        elif 'agen' in est_raw: estado = 'AGENDADO'
+        elif 'cancel' in est_raw: estado = 'CANCELADO'
         elif 'gest' in est_raw: estado = 'EN_GESTION'
 
-        sig = (pid, d_sol_str, proc_norm)
-        
-        barrera = limpiar_dato(getattr(row, 'barrera', None))
-        obs = limpiar_dato(getattr(row, 'observaciones', None))
-        ruta = limpiar_dato(getattr(row, 'ruta', None))
-        eps = limpiar_dato(getattr(row, 'entidad_aseguradora', None))
-        cups = limpiar_dato(getattr(row, 'cups', None))
+        new_fs.append(FollowUp(
+            patient_id=pid,
+            tipo_procedimiento=proc.upper(),
+            fecha_solicitud_cita=d_sol,
+            estado_solicitud=estado,
+            fecha_cita=parse_date(getattr(row, 'fecha_cita', None)),
+            barrera=limpiar_dato(getattr(row, 'barrera', None)),
+            observaciones=limpiar_dato(getattr(row, 'observaciones', None)),
+            entidad_aseguradora=limpiar_dato(getattr(row, 'entidad_aseguradora', None)),
+            cups=limpiar_dato(getattr(row, 'cups', None)),
+            ruta=limpiar_dato(getattr(row, 'ruta', None))
+        ))
+        existing_sigs.add(sig)
 
-        if sig in sig_map:
-            fid = sig_map[sig]
-            if fid != -1: 
-                f = FollowUp(id=fid)
-                f.estado_solicitud = estado
-                f.fecha_cita = d_cita
-                f.barrera = barrera
-                f.observaciones = obs
-                f.ruta = ruta
-                f.entidad_aseguradora = eps
-                update_list.append(f)
-        else:
-            new_f = FollowUp(
-                patient_id=pid, tipo_procedimiento=proc_raw.upper(),
-                fecha_solicitud_cita=d_sol, estado_solicitud=estado,
-                fecha_cita=d_cita, barrera=barrera, observaciones=obs,
-                ruta=ruta, entidad_aseguradora=eps, cups=cups
-            )
-            create_list.append(new_f)
-            sig_map[sig] = -1 
+    if new_fs:
+        FollowUp.objects.bulk_create(new_fs, batch_size=500)
 
-    with transaction.atomic():
-        if create_list: FollowUp.objects.bulk_create(create_list, batch_size=500)
-        if update_list: 
-            FollowUp.objects.bulk_update(update_list, 
-                ['estado_solicitud', 'fecha_cita', 'barrera', 'observaciones', 'ruta', 'entidad_aseguradora'], 
-                batch_size=500)
+    return {"success": True, "registros": len(new_fs), "actualizados": len(update_ps)}
 
-    return {"success": True, "registros": len(create_list), "actualizados": len(update_list)}
-
-# --- 3. MÉTRICAS OPERATIVAS (RESTITUÍDAS) ---
-
+# --- 4. MÉTRICAS (Igual que antes) ---
 def compute_request_status_from_db(queryset=None):
     if queryset is None: queryset = FollowUp.objects.all()
     active = queryset.exclude(estado_solicitud__icontains='CANCELADO')
     total = active.count()
-    if total == 0: return {"labels": ["Sin Datos"], "values": [0], "completados": 0, "pendientes": 0, "porcentaje_completado": 0}
-    
+    if total == 0: return {"labels": [], "values": [], "completados": 0, "pendientes": 0, "porcentaje_completado": 0}
     realizados = active.filter(estado_solicitud__icontains='REALIZADO').count()
     agendados = active.filter(estado_solicitud__icontains='AGENDADO').count()
     pendientes = active.filter(Q(estado_solicitud__icontains='PENDIENTE') | Q(estado_solicitud__icontains='GESTION')).count()
-    
-    return {
-        "labels": ["Realizado", "Agendado", "Pendiente"],
-        "values": [realizados, agendados, pendientes],
-        "completados": realizados,
-        "pendientes": pendientes + agendados,
-        "porcentaje_completado": round((realizados/total)*100, 1)
-    }
+    return {"labels": ["Realizado", "Agendado", "Pendiente"], "values": [realizados, agendados, pendientes], "completados": realizados, "pendientes": pendientes+agendados, "porcentaje_completado": round((realizados/total)*100, 1)}
 
 def compute_barriers(queryset=None):
     if queryset is None: queryset = FollowUp.objects.all()
@@ -279,18 +347,13 @@ def compute_barriers(queryset=None):
 def compute_opportunity_by_procedure(queryset=None):
     if queryset is None: queryset = FollowUp.objects.all()
     data = queryset.values('tipo_procedimiento').annotate(total=Count('id')).order_by('-total')[:10]
-    labels = [str(x['tipo_procedimiento'])[:20]+"..." for x in data]
-    return {"procedimiento_labels": json.dumps(labels), "values": [x['total'] for x in data]}
-
-# --- 4. MÉTRICAS ANALÍTICAS (NUEVAS) ---
+    return {"procedimiento_labels": json.dumps([str(x['tipo_procedimiento'])[:20] for x in data]), "values": [x['total'] for x in data]}
 
 def compute_institutional_metrics_db():
-    # 1. GÉNERO
     gender_qs = Patient.objects.values('genero').annotate(total=Count('id')).order_by('-total')
     g_labels = [x['genero'] or 'SIN DATO' for x in gender_qs]
     g_values = [x['total'] for x in gender_qs]
-
-    # 2. EDAD
+    
     edades = list(Patient.objects.filter(edad__isnull=False).values_list('edad', flat=True))
     rangos = {'0-18': 0, '19-30': 0, '31-50': 0, '51-70': 0, '71+': 0}
     for e in edades:
@@ -303,55 +366,16 @@ def compute_institutional_metrics_db():
             else: rangos['71+'] += 1
         except: pass
     
-    a_labels = list(rangos.keys())
-    a_values = list(rangos.values())
-
-    # 3. ESTADOS
-    status_qs = FollowUp.objects.values('estado_solicitud').annotate(total=Count('id')).order_by('-total')
-    s_labels = [str(x['estado_solicitud']).upper() for x in status_qs]
-    s_values = [x['total'] for x in status_qs]
-
-    # 4. PROCEDIMIENTOS (Agrupación Inclusiva)
-    raw_procs = FollowUp.objects.values_list('tipo_procedimiento', flat=True)
-    proc_counts = {}
-    
-    for p in raw_procs:
-        if not p: continue
-        p_upper = str(p).upper().strip()
-        
-        # Lógica de Agrupación
-        key = p_upper # Por defecto usamos el nombre original
-        
-        if 'CONSULTA' in p_upper or 'VALORACION' in p_upper: key = 'CONSULTAS'
-        elif 'RESONANCIA' in p_upper or 'TAC' in p_upper or 'ECOGRAFIA' in p_upper or 'RX' in p_upper or 'IMAGEN' in p_upper or 'GAMMAGRAFIA' in p_upper: key = 'IMAGENES DX'
-        elif 'LABORATORIO' in p_upper or 'SANGRE' in p_upper or 'HEMOGRAMA' in p_upper or 'PERFIL' in p_upper: key = 'LABORATORIO'
-        elif 'QUIMIO' in p_upper or 'APLICACION' in p_upper: key = 'QUIMIOTERAPIA'
-        elif 'RADIO' in p_upper: key = 'RADIOTERAPIA'
-        elif 'CIRUGIA' in p_upper or 'RESECCION' in p_upper: key = 'CIRUGIA'
-        elif 'PATOLOGIA' in p_upper or 'BIOPSIA' in p_upper: key = 'PATOLOGIA'
-        
-        # Si no coincidió con nada, se guarda como estaba (ej: "INSUMOS")
-        proc_counts[key] = proc_counts.get(key, 0) + 1
-    
-    # Ordenar Top 10
-    sorted_procs = sorted(proc_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-    d_labels = [x[0] for x in sorted_procs]
-    d_values = [x[1] for x in sorted_procs]
-
-    # 5. MENSUAL
-    month_qs = FollowUp.objects.annotate(month=TruncMonth('fecha_solicitud_cita'))\
-        .values('month').annotate(total=Count('id')).order_by('month')
-    m_labels = []
-    m_values = []
-    for x in month_qs:
-        if x['month']:
-            m_labels.append(x['month'].strftime('%b %Y'))
-            m_values.append(x['total'])
+    eps_qs = FollowUp.objects.exclude(Q(entidad_aseguradora__isnull=True)|Q(entidad_aseguradora__exact='')).values('entidad_aseguradora').annotate(total=Count('id')).order_by('-total')[:10]
+    barrier_qs = FollowUp.objects.exclude(Q(barrera__isnull=True)|Q(barrera__exact='')).values('barrera').annotate(total=Count('id')).order_by('-total')[:10]
+    month_qs = FollowUp.objects.annotate(month=TruncMonth('fecha_solicitud_cita')).values('month').annotate(total=Count('id')).order_by('month')
+    m_labels = [x['month'].strftime('%b %Y') for x in month_qs if x['month']]
+    m_values = [x['total'] for x in month_qs if x['month']]
 
     return {
         'gender_labels': json.dumps(g_labels), 'gender_values': json.dumps(g_values),
-        'age_labels': json.dumps(a_labels), 'age_values': json.dumps(a_values),
-        'state_labels': json.dumps(s_labels), 'state_values': json.dumps(s_values),
-        'diag_labels': json.dumps(d_labels), 'diag_values': json.dumps(d_values),
+        'age_labels': json.dumps(list(rangos.keys())), 'age_values': json.dumps(list(rangos.values())),
+        'eps_labels': json.dumps([str(x['entidad_aseguradora'])[:30] for x in eps_qs]), 'eps_values': json.dumps([x['total'] for x in eps_qs]),
+        'barrier_labels': json.dumps([str(x['barrera'])[:40] for x in barrier_qs]), 'barrier_values': json.dumps([x['total'] for x in barrier_qs]),
         'month_labels': json.dumps(m_labels), 'cnt_values': json.dumps(m_values),
     }
