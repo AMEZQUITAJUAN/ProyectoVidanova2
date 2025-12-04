@@ -240,22 +240,20 @@
         </div>
 
         <!-- TABLA (Lógica Nueva + Estilo) -->
-        <div class="card shadow-sm p-0 overflow-hidden">
+        <!-- TABLA (Limpia, sin form envolvente) -->
+        <div class="card shadow-sm p-0 overflow-hidden mb-5">
+            
             <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                 <h5 class="mb-0">Listado de Pacientes</h5>
-                
-                <!-- Selector de Filas -->
+                <!-- Paginador Header -->
                 <form method="get" class="d-inline-block">
                     {% for key, value in request.GET.items %}
-                        {% if key != 'per_page' and key != 'page' %}
-                            <input type="hidden" name="{{ key }}" value="{{ value }}">
-                        {% endif %}
+                        {% if key != 'per_page' and key != 'page' %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}
                     {% endfor %}
                     <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="10" {% if per_page == 10 %}selected{% endif %}>10 filas</option>
                         <option value="25" {% if per_page == 25 %}selected{% endif %}>25 filas</option>
                         <option value="50" {% if per_page == 50 %}selected{% endif %}>50 filas</option>
-                        <option value="100" {% if per_page == 100 %}selected{% endif %}>100 filas</option>
                     </select>
                 </form>
             </div>
@@ -264,8 +262,12 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
+                            <!-- 1. CHECKBOX MAESTRO -->
+                            <th style="width: 40px;" class="text-center">
+                                <input type="checkbox" class="form-check-input" id="selectAll">
+                            </th>
                             <th class="mw-paciente">Paciente</th>
-                            <th class="mw-procedimiento">Procedimiento</th> <!-- Columna problemática controlada -->
+                            <th class="mw-procedimiento">Procedimiento</th>
                             <th class="mw-estado">Estado</th>
                             <th class="mw-fechas">Fechas</th>
                             <th class="text-center mw-tiempos">Tiempos</th>
@@ -273,32 +275,27 @@
                             <th class="mw-acciones">Acciones</th>
                         </tr>
                     </thead>
-                    </thead>
                     <tbody>
                     {% for r in page_obj %}
                         <tr class="{% if r.es_alerta_roja %}table-danger border-start border-5 border-danger{% endif %}">
                             
-                            <!-- 1. PACIENTE (Nombre Completo) -->
+                            <!-- 2. CHECKBOX FILA -->
+                            <td class="text-center">
+                                <input type="checkbox" name="item_id" value="{{ r.id }}" class="form-check-input item-checkbox">
+                            </td>
+
                             <td class="mw-paciente">
-                                <div class="fw-bold text-dark text-truncate-box" title="{{ r.patient.nombre_completo }}">
-                                    {{ r.patient.nombre_completo }}
-                                </div>
-                                <div class="small text-muted d-flex align-items-center gap-1">
-                                    <i class="far fa-id-card"></i> {{ r.patient.numero_documento }}
-                                </div>
+                                <div class="fw-bold text-dark text-truncate-box" title="{{ r.patient.nombre_completo }}">{{ r.patient.nombre_completo }}</div>
+                                <div class="small text-muted"><i class="far fa-id-card"></i> {{ r.patient.numero_documento }}</div>
                             </td>
                             
-                            <!-- 2. PROCEDIMIENTO -->
                             <td class="mw-procedimiento">
                                 <div class="d-flex flex-column" title="{{ r.tipo_procedimiento }}">
-                                    <span class="badge bg-secondary text-truncate-box mb-1">
-                                        {{ r.tipo_procedimiento|default:"-" }}
-                                    </span>
+                                    <span class="badge bg-secondary text-truncate-box mb-1">{{ r.tipo_procedimiento|default:"-" }}</span>
                                     <small class="text-muted text-truncate-box">{{ r.cups|default:"" }}</small>
                                 </div>
                             </td>
                             
-                            <!-- 3. ESTADO -->
                             <td class="mw-estado">
                                 {% if "REALIZADO" in r.estado_solicitud|upper %}
                                     <span class="badge bg-success">REALIZADO</span>
@@ -311,7 +308,6 @@
                                 {% endif %}
                             </td>
                             
-                            <!-- 4. FECHAS (Con alerta visual si hay error) -->
                             <td class="mw-fechas small">
                                 <div><strong>Sol:</strong> {{ r.fecha_solicitud_cita|date:"d/m/Y"|default:"-" }}</div>
                                 {% if r.fecha_cita %}
@@ -321,136 +317,207 @@
                                 {% endif %}
                             </td>
                             
-                            <!-- 5. TIEMPOS (Manejo de Error) -->
                             <td class="text-center mw-tiempos">
                                 {% if r.fecha_cita %}
-                                    <!-- Si ya tiene cita -->
                                     {% if r.es_inconsistente %}
-                                        <span class="badge bg-danger" title="Error en Excel: Cita antes de solicitud">
-                                            <i class="fas fa-exclamation-triangle"></i> Error Fecha
-                                        </span>
+                                        <span class="badge bg-danger" title="Error"><i class="fas fa-exclamation-triangle"></i></span>
                                     {% else %}
                                         <span class="badge bg-light text-dark border">{{ r.dias_diff }} días</span>
-                                        <div class="small text-muted">Gestión</div>
                                     {% endif %}
                                 {% else %}
-                                    <!-- Si está pendiente -->
                                     {% if r.es_alerta_roja %}
                                         <span class="fw-bold text-danger">{{ r.dias_espera_actuales }} días</span>
-                                        <div class="small text-danger fw-bold">Esperando</div>
                                     {% else %}
                                         <span class="text-muted">{{ r.dias_espera_actuales }} días</span>
-                                        <div class="small text-muted">Esperando</div>
                                     {% endif %}
                                 {% endif %}
                             </td>
                             
-                            <!-- 6. OBSERVACIONES -->
                             <td class="mw-obs">
-                                <div class="text-truncate-box" title="{{ r.observaciones }}">
-                                    {{ r.observaciones|default:"-" }}
-                                </div>
+                                <div class="text-truncate-box" title="{{ r.observaciones }}">{{ r.observaciones|default:"-" }}</div>
                             </td>
 
-                            <!-- 7. ACCIONES -->
                             <td class="mw-acciones">
                                 <div class="btn-group">
-                                    <!-- VER: Detalle completo -->
-                                    <a href="{% url 'followup_detail' r.id %}" class="btn btn-sm btn-light border" title="Ver Detalle">
-                                        <i class="fas fa-eye text-primary"></i>
-                                    </a>
-                                    
-                                    <!-- EDITAR: Formulario manual -->
-                                    <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-light border" title="Editar">
-                                        <i class="fas fa-pen text-warning"></i>
-                                    </a>
-                                    
-                                    <!-- ELIMINAR: Confirmación -->
-                                    <a href="{% url 'eliminar_followup' r.id %}" class="btn btn-sm btn-light border" title="Eliminar">
-                                        <i class="fas fa-trash text-danger"></i>
-                                    </a>
+                                    <a href="{% url 'followup_detail' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-eye text-primary"></i></a>
+                                    <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-pen text-warning"></i></a>
+                                    <a href="{% url 'eliminar_followup' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-trash text-danger"></i></a>
                                 </div>
                             </td>
                         </tr>
                     {% empty %}
-                        <tr>
-                            <td colspan="7" class="text-center py-5">
-                                <i class="fas fa-folder-open fa-3x mb-3 text-muted opacity-50"></i>
-                                <h4>No hay registros</h4>
-                            </td>
-                        </tr>
+                        <tr><td colspan="8" class="text-center py-5"><h4>No hay registros</h4></td></tr>
                     {% endfor %}
                     </tbody>
                 </table>
             </div>
             
-            <!-- Paginación Footer -->
             <div class="card-footer bg-white py-3">
                 <nav>
                     <ul class="pagination justify-content-center mb-0">
                         {% if page_obj.has_previous %}
                             <li class="page-item"><a class="page-link" href="?{% param_replace page=page_obj.previous_page_number %}">Anterior</a></li>
-                        {% else %}
-                            <li class="page-item disabled"><span class="page-link">Anterior</span></li>
                         {% endif %}
-                        <li class="page-item disabled"><span class="page-link border-0">Pág {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+                        <li class="page-item disabled"><span class="page-link border-0">Pág {{ page_obj.number }}</span></li>
                         {% if page_obj.has_next %}
                             <li class="page-item"><a class="page-link" href="?{% param_replace page=page_obj.next_page_number %}">Siguiente</a></li>
-                        {% else %}
-                            <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
                         {% endif %}
                     </ul>
                 </nav>
             </div>
         </div>
+    </div> <!-- Cierre del Container Principal -->
+
+    <!-- === A. BOTÓN FLOTANTE (FAB) === -->
+    <button id="fabBulk" class="btn btn-primary shadow-lg rounded-pill px-4 py-2 d-none" 
+            style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1050; border: 2px solid white; transition: all 0.3s;"
+            data-bs-toggle="modal" data-bs-target="#bulkModal">
+        <i class="fas fa-tasks me-2"></i> Gestionar (<span id="fabCount">0</span>) Pacientes
+    </button>
+
+    <!-- === B. MODAL DE GESTIÓN MASIVA === -->
+    <div class="modal fade" id="bulkModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <form action="{% url 'actualizacion_masiva' %}" method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="selected_ids" id="hiddenIdsInput">
+
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title"><i class="fas fa-layer-group me-2"></i>Gestión Masiva</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    
+                    <div class="modal-body bg-light">
+                        <div class="alert alert-info py-2 small">
+                            Aplicando cambios a <strong id="modalCount">0</strong> pacientes seleccionados.
+                        </div>
+                        
+                        <!-- Opción 1: Estado -->
+                        <div class="card p-3 border-0 shadow-sm mb-3">
+                            <label class="form-label fw-bold text-primary">1. Cambiar Estado</label>
+                            <select name="bulk_status" class="form-select">
+                                <option value="" selected>-- Mantener estado actual --</option>
+                                <option value="EN_GESTION">EN GESTIÓN</option>
+                                <option value="AGENDADO">AGENDADO</option>
+                                <option value="REALIZADO">REALIZADO</option>
+                                <option value="PENDIENTE">PENDIENTE</option>
+                                <option value="CANCELADO">CANCELADO</option>
+                            </select>
+                        </div>
+
+                        <!-- Opción 2: Bitácora -->
+                        <div class="card p-3 border-0 shadow-sm mb-3">
+                            <label class="form-label fw-bold text-success">2. Nota de Bitácora</label>
+                            <textarea name="bulk_observation" class="form-control" rows="2" placeholder="Ej: Se intentó contactar sin éxito..."></textarea>
+                        </div>
+
+                        <!-- Opción 3: Fecha -->
+                        <div class="card p-3 border-0 shadow-sm">
+                            <label class="form-label fw-bold text-muted">3. Asignar Fecha Cita</label>
+                            <input type="date" name="bulk_date" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer border-0 bg-white">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">Aplicar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
-    <!-- SCRIPTS GRÁFICAS -->
+    <!-- SCRIPT DEL TABLERO -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Estado
-        new Chart(document.getElementById('chartEstado'), {
-            type: 'doughnut',
-            data: {
-                labels: {{ estado_procedimiento_labels|default:"[]"|safe }},
-                datasets: [{
-                    data: {{ estado_procedimiento_values|default:"[]"|safe }},
-                    backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
-                    borderWidth: 0
-                }]
-            },
-            options: { plugins: { legend: { position: 'bottom' } }, cutout: '70%' }
-        });
         
-        // Barreras
-        new Chart(document.getElementById('chartBarreras'), {
-            type: 'bar',
-            data: {
-                labels: {{ barreras_labels|default:"[]"|safe }},
-                datasets: [{
-                    label: 'Casos',
-                    data: {{ barreras_values|default:"[]"|safe }},
-                    backgroundColor: '#ef4444',
-                    borderRadius: 4
-                }]
-            },
-            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+        // 1. LOGICA DE CHECKBOXES
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.item-checkbox');
+        const fabBtn = document.getElementById('fabBulk');
+        const fabCount = document.getElementById('fabCount');
+        const modalCount = document.getElementById('modalCount');
+        const hiddenInput = document.getElementById('hiddenIdsInput');
+
+        function updateSelection() {
+            const checkedBoxes = document.querySelectorAll('.item-checkbox:checked');
+            const count = checkedBoxes.length;
+            
+            fabCount.textContent = count;
+            if (modalCount) modalCount.textContent = count;
+
+            if (count > 0) {
+                fabBtn.classList.remove('d-none');
+            } else {
+                fabBtn.classList.add('d-none');
+            }
+
+            const ids = Array.from(checkedBoxes).map(cb => cb.value);
+            if (hiddenInput) hiddenInput.value = ids.join(',');
+        }
+
+        if (selectAll) {
+            selectAll.addEventListener('change', function() {
+                checkboxes.forEach(cb => cb.checked = this.checked);
+                updateSelection();
+            });
+        }
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', updateSelection);
         });
 
-        // Procedimientos
-        new Chart(document.getElementById('chartProcedimientos'), {
-            type: 'bar',
-            data: {
-                labels: {{ oportunidad_procedimiento_labels|default:"[]"|safe }},
-                datasets: [{
-                    label: 'Solicitudes',
-                    data: {{ oportunidad_procedimiento_values|default:"[]"|safe }},
-                    backgroundColor: '#3b82f6',
-                    borderRadius: 4
-                }]
-            },
-            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-        });
+        // 2. LOGICA DE GRÁFICAS (Las que ya funcionaban)
+        const ctxEstado = document.getElementById('chartEstado');
+        if (ctxEstado) {
+            new Chart(ctxEstado, {
+                type: 'doughnut',
+                data: {
+                    labels: {{ estado_procedimiento_labels|default:"[]"|safe }},
+                    datasets: [{
+                        data: {{ estado_procedimiento_values|default:"[]"|safe }},
+                        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { plugins: { legend: { position: 'bottom' } }, cutout: '70%' }
+            });
+        }
+        
+        const ctxBarreras = document.getElementById('chartBarreras');
+        if (ctxBarreras) {
+            new Chart(ctxBarreras, {
+                type: 'bar',
+                data: {
+                    labels: {{ barreras_labels|default:"[]"|safe }},
+                    datasets: [{
+                        label: 'Casos',
+                        data: {{ barreras_values|default:"[]"|safe }},
+                        backgroundColor: '#ef4444',
+                        borderRadius: 4
+                    }]
+                },
+                options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+            });
+        }
+
+        const ctxProc = document.getElementById('chartProcedimientos');
+        if (ctxProc) {
+            new Chart(ctxProc, {
+                type: 'bar',
+                data: {
+                    labels: {{ oportunidad_procedimiento_labels|default:"[]"|safe }},
+                    datasets: [{
+                        label: 'Solicitudes',
+                        data: {{ oportunidad_procedimiento_values|default:"[]"|safe }},
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4
+                    }]
+                },
+                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
+        }
     });
     </script>
 </body>

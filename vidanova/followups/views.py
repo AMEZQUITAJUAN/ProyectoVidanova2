@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpResponse
+from django.utils import timezone
 
 from .models import FollowUp
 from .forms import FollowUpForm, UploadFileForm
@@ -226,18 +227,40 @@ def followup_detail(request, pk):
 
 def editar_followup(request, pk):
     followup = get_object_or_404(FollowUp, pk=pk)
+    
     if request.method == 'POST':
         form = FollowUpForm(request.POST, instance=followup)
         if form.is_valid():
+            # --- LÓGICA DE BITÁCORA ---
+            nueva_nota = form.cleaned_data.get('nueva_observacion')
+            
+            if nueva_nota:
+                # 1. Obtenemos datos de auditoría
+                usuario = request.user.username.title() # Ej: "Admin"
+                ahora = timezone.now().strftime("%d/%m/%Y %H:%M") # Ej: 03/12/2025 10:30
+                
+                # 2. Formateamos la entrada: [Fecha Usuario]: Texto
+                entrada_bitacora = f"[{ahora} - {usuario}]: {nueva_nota}"
+                
+                # 3. Concatenamos (Lo nuevo arriba)
+                historial_previo = followup.observaciones or ""
+                # Agregamos salto de línea si ya había historia
+                if historial_previo:
+                    followup.observaciones = f"{entrada_bitacora}\n{historial_previo}"
+                else:
+                    followup.observaciones = entrada_bitacora
+            
+            # Guardamos (Django guarda el campo observaciones modificado automáticamente)
             form.save()
-            messages.success(request, f"Caso de {followup.patient.nombre_completo} actualizado.")
+            
+            messages.success(request, f"Gestión de {followup.patient.nombre_completo} registrada.")
             return redirect('followup_dashboard')
     else:
         form = FollowUpForm(instance=followup)
     
     return render(request, 'followup_form.html', {
         'form': form, 
-        'title': 'Editar Seguimiento',
+        'title': 'Gestionar Caso',
         'patient': followup.patient
     })
 
@@ -270,4 +293,69 @@ def eliminar_followup(request, pk):
     return render(request, 'followup_confirm_delete.html', {'followup': followup})
 
 def ver_datos_siisa(request):
+    return redirect('followup_dashboard')
+# --- 6. ACCIONES MASIVAS (BULK ACTIONS) ---
+
+@login_required
+def actualizacion_masiva(request):
+    """
+    Procesa acciones masivas: Estado + Nota en Bitácora + Fecha Cita.
+    """
+    if request.method == 'POST':
+        # 1. Obtener datos del Modal
+        # IDs viene como un string separado por comas desde el JS: "1,4,5"
+        ids_str = request.POST.get('selected_ids', '')
+        
+        nuevo_estado = request.POST.get('bulk_status')
+        nueva_nota = request.POST.get('bulk_observation')
+        nueva_fecha_cita = request.POST.get('bulk_date')
+        
+        if not ids_str:
+            messages.warning(request, "⚠️ No se seleccionaron registros.")
+            return redirect('followup_dashboard')
+
+        ids_list = ids_str.split(',')
+        registros = FollowUp.objects.filter(id__in=ids_list)
+        count = registros.count()
+        updated_objs = []
+
+        # Datos de auditoría
+        usuario = request.user.username.title()
+        ahora = timezone.now().strftime("%d/%m/%Y %H:%M")
+
+        # 2. Iterar y modificar en memoria (Para la bitácora)
+        for r in registros:
+            cambios_realizados = False
+
+            # A. Cambio de Estado
+            if nuevo_estado:
+                r.estado_solicitud = nuevo_estado
+                cambios_realizados = True
+
+            # B. Cambio de Fecha
+            if nueva_fecha_cita:
+                r.fecha_cita = nueva_fecha_cita
+                cambios_realizados = True
+
+            # C. Inyección en Bitácora (Append)
+            if nueva_nota:
+                entrada = f"[{ahora} - {usuario} - MASIVO]: {nueva_nota}"
+                historial_previo = r.observaciones or ""
+                r.observaciones = f"{entrada}\n{historial_previo}"
+                cambios_realizados = True
+            
+            if cambios_realizados:
+                updated_objs.append(r)
+
+        # 3. Guardado Eficiente (Bulk Update)
+        if updated_objs:
+            fields_to_update = ['observaciones']
+            if nuevo_estado: fields_to_update.append('estado_solicitud')
+            if nueva_fecha_cita: fields_to_update.append('fecha_cita')
+            
+            FollowUp.objects.bulk_update(updated_objs, fields_to_update)
+            messages.success(request, f"✅ Se gestionaron {count} pacientes correctamente.")
+        else:
+            messages.info(request, "No se aplicaron cambios.")
+            
     return redirect('followup_dashboard')
