@@ -71,6 +71,15 @@
                     </a>
                     <span class="tooltip">Admin DB</span>
                 </li>
+
+                <li class="mt-1">
+                    <a href="{% url 'auditoria_calidad' %}" class="{% if 'auditoria' in request.path %}active{% endif %}">
+                        <i class='bx bxs-check-shield'></i>
+                        <span class="links_name">Auditoría</span>
+                    </a>
+                    <span class="tooltip">Auditoría</span>
+                </li>
+                
             </ul>
         </div>
 
@@ -98,8 +107,77 @@
         </div>
     </div>
 
-    <!-- CONTENIDO PRINCIPAL -->
+        <!-- CONTENIDO PRINCIPAL -->
     <div class="main-content">
+        
+        <!-- BARRA SUPERIOR (HEADER) -->
+        <div class="d-flex justify-content-between align-items-center mb-4 pt-2 pb-2 border-bottom">
+            <!-- Título de la Página (Dinámico) -->
+            <h4 class="mb-0 text-primary fw-bold">{% block page_header %}Gestión Vidanova{% endblock %}</h4>
+            
+            <!-- CAMPANA DE NOTIFICACIONES -->
+            <div class="dropdown">
+                <button class="btn btn-light position-relative border-0 shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class='bx bxs-bell fs-4 text-secondary'></i>
+                    
+                    <!-- Badge Rojo (Solo aparece si hay alertas) -->
+                    {% if alert_total > 0 %}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light">
+                            {{ alert_total }}
+                            <span class="visually-hidden">alertas</span>
+                        </span>
+                    {% endif %}
+                </button>
+                
+                <!-- Menú Desplegable -->
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="width: 300px;">
+                    <li class="dropdown-header text-uppercase small fw-bold text-muted">Centro de Alertas</li>
+                    
+                    {% if alert_total == 0 %}
+                        <li class="p-3 text-center text-muted">
+                            <i class='bx bx-check-circle fs-1 text-success mb-2'></i><br>
+                            Todo al día. ¡Buen trabajo!
+                        </li>
+                    {% else %}
+                        
+                        <!-- Item: Vencidos -->
+                        {% if alert_overdue > 0 %}
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center py-2" href="{% url 'followup_dashboard' %}?q=PENDIENTE">
+                                <div class="bg-danger bg-opacity-10 text-danger rounded p-2 me-3">
+                                    <i class='bx bx-time-five fs-4'></i>
+                                </div>
+                                <div>
+                                    <strong class="text-danger">{{ alert_overdue }} Casos Críticos</strong>
+                                    <div class="small text-muted">+30 días sin gestión</div>
+                                </div>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        <!-- Item: Inconsistencias -->
+                        {% if alert_inconsistent > 0 %}
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center py-2" href="{% url 'followup_dashboard' %}">
+                                <div class="bg-warning bg-opacity-10 text-warning rounded p-2 me-3">
+                                    <i class='bx bx-error fs-4'></i>
+                                </div>
+                                <div>
+                                    <strong class="text-dark">{{ alert_inconsistent }} Errores de Datos</strong>
+                                    <div class="small text-muted">Fechas incoherentes</div>
+                                </div>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+
         {% if messages %}
             <div class="mb-4">
                 {% for message in messages %}

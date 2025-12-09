@@ -5,9 +5,11 @@ from django.core.files.storage import FileSystemStorage
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db.models import Q, Count, F
 from django.http import HttpResponse
 from django.utils import timezone
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
 
 from .models import FollowUp
 from .forms import FollowUpForm, UploadFileForm
@@ -22,13 +24,8 @@ from .services import (
 # --- 1. TABLERO PRINCIPAL (DASHBOARD) ---
 @login_required
 def followup_dashboard(request):
-    """
-    Vista principal: Tablero de control + Listado con filtros y buscador.
-    """
-    # 1. Queryset Base
     queryset = FollowUp.objects.select_related('patient').all().order_by('-fecha_solicitud_cita', '-id')
 
-    # 2. Captura de Filtros
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     status = request.GET.get('status')
@@ -37,18 +34,13 @@ def followup_dashboard(request):
     barrier = request.GET.get('barrier')
     q_search = request.GET.get('q')
 
-    # 3. Aplicación de Filtros
     if date_from: queryset = queryset.filter(fecha_solicitud_cita__gte=date_from)
     if date_to: queryset = queryset.filter(fecha_solicitud_cita__lte=date_to)
-    
     if status: queryset = queryset.filter(estado_solicitud__icontains=status)
     if procedure: queryset = queryset.filter(tipo_procedimiento__icontains=procedure)
-    
-    # Filtros Exactos
     if eps: queryset = queryset.filter(entidad_aseguradora=eps)
     if barrier: queryset = queryset.filter(barrera=barrier)
     
-    # Buscador Global
     if q_search:
         queryset = queryset.filter(
             Q(patient__numero_documento__icontains=q_search) |
@@ -58,26 +50,15 @@ def followup_dashboard(request):
             Q(cups__icontains=q_search)
         )
 
-    # 4. Obtener Opciones para los Selectores (Distinct Values)
-    eps_options = FollowUp.objects.exclude(entidad_aseguradora__isnull=True)\
-        .exclude(entidad_aseguradora='').values_list('entidad_aseguradora', flat=True).distinct().order_by('entidad_aseguradora')
-        
-    barrier_options = FollowUp.objects.exclude(barrera__isnull=True)\
-        .exclude(barrera='').values_list('barrera', flat=True).distinct().order_by('barrera')
+    eps_options = FollowUp.objects.exclude(entidad_aseguradora__isnull=True).exclude(entidad_aseguradora='').values_list('entidad_aseguradora', flat=True).distinct().order_by('entidad_aseguradora')
+    barrier_options = FollowUp.objects.exclude(barrera__isnull=True).exclude(barrera='').values_list('barrera', flat=True).distinct().order_by('barrera')
 
-    # 5. KPIs y Estadísticas Avanzadas
-    # A. Total GLOBAL (Sin filtros) para calcular el porcentaje real
     grand_total = FollowUp.objects.count()
-
-    # B. Total FILTRADO (El que ve el usuario)
     total_registros_filtrados = queryset.count()
-
-    # C. Cálculo de Porcentaje Global
     pct_global = 0
     if grand_total > 0:
         pct_global = round((total_registros_filtrados / grand_total) * 100, 1)
 
-    # D. Cálculo de Pendientes (sobre lo filtrado)
     kpi_status = compute_request_status_from_db(queryset)
     kpi_procedure = compute_opportunity_by_procedure(queryset)
     kpi_barriers = compute_barriers(queryset)
@@ -86,15 +67,13 @@ def followup_dashboard(request):
     if total_registros_filtrados > 0:
         pct_pendientes = round((kpi_status['pendientes'] / total_registros_filtrados) * 100, 1)
 
-    # E. Cálculo de Promedio Días (sobre lo filtrado)
     realizados = queryset.filter(estado_solicitud__icontains='REALIZADO', fecha_cita__isnull=False, fecha_solicitud_cita__isnull=False)
     dias_list = [r.dias_diff for r in realizados if r.dias_diff is not None and r.dias_diff >= 0]
     promedio = round(sum(dias_list) / len(dias_list), 1) if dias_list else 0
 
-    # Diccionario Final de Estadísticas
     stats = {
-        'total': total_registros_filtrados,   # Número grande (Filtrado)
-        'pct_global': pct_global,             # Porcentaje vs Base Total
+        'total': total_registros_filtrados,
+        'pct_global': pct_global,
         'grand_total': grand_total,           
         'completados': kpi_status['completados'],
         'pendientes': kpi_status['pendientes'],
@@ -103,7 +82,6 @@ def followup_dashboard(request):
         'promedio_dias': promedio
     }
 
-    # 6. Paginación
     per_page = request.GET.get('per_page', 25)
     try: per_page = int(per_page)
     except ValueError: per_page = 25
@@ -117,10 +95,8 @@ def followup_dashboard(request):
         'page_obj': page_obj,
         'filtros': request.GET,
         'stats': stats,
-        # Listas para Dropdowns
         'eps_options': eps_options,       
         'barrier_options': barrier_options,
-        # Gráficas
         'estado_procedimiento_labels': kpi_status['labels'],
         'estado_procedimiento_values': kpi_status['values'],
         'oportunidad_procedimiento_labels': kpi_procedure['procedimiento_labels'],
@@ -130,7 +106,7 @@ def followup_dashboard(request):
     }
     return render(request, 'followups.html', context)
 
-# --- 2. IMPORTACIÓN DE DATOS (LA QUE FALTABA) ---
+# --- 2. IMPORTACIÓN DE DATOS ---
 @login_required
 def importar_datos(request):
     if request.method == 'POST':
@@ -142,7 +118,6 @@ def importar_datos(request):
             file_path = fs.path(filename)
             try:
                 resultado = importar_archivo_masivo(file_path)
-                
                 if resultado.get('success'):
                     msg = f"Carga completada. Nuevos: {resultado.get('registros')}, Actualizados: {resultado.get('actualizados')}"
                     messages.success(request, msg)
@@ -158,23 +133,25 @@ def importar_datos(request):
         form = UploadFileForm()
     return render(request, 'cargar_datos.html', {'form': form})
 
-# --- 3. EXPORTACIÓN EXCEL ---
+# --- 3. EXPORTACIÓN EXCEL PROFESIONAL ---
+@login_required
 def exportar_excel(request):
-    """
-    Exporta a Excel aplicando los mismos filtros de la vista.
-    """
     queryset = FollowUp.objects.select_related('patient').all().order_by('-fecha_solicitud_cita')
     
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     status = request.GET.get('status')
     procedure = request.GET.get('procedure')
+    eps = request.GET.get('eps')
+    barrier = request.GET.get('barrier')
     q_search = request.GET.get('q')
 
     if date_from: queryset = queryset.filter(fecha_solicitud_cita__gte=date_from)
     if date_to: queryset = queryset.filter(fecha_solicitud_cita__lte=date_to)
     if status: queryset = queryset.filter(estado_solicitud__icontains=status)
     if procedure: queryset = queryset.filter(tipo_procedimiento__icontains=procedure)
+    if eps: queryset = queryset.filter(entidad_aseguradora=eps)
+    if barrier: queryset = queryset.filter(barrera=barrier)
     
     if q_search:
         queryset = queryset.filter(
@@ -185,31 +162,52 @@ def exportar_excel(request):
             Q(cups__icontains=q_search)
         )
 
-    data = []
-    for f in queryset:
-        data.append({
-            'Documento': f.patient.numero_documento,
-            'Paciente': f.patient.nombre_completo,
-            'Edad': f.patient.edad,
-            'Género': f.patient.genero,
-            'Aseguradora': f.entidad_aseguradora,
-            'Tipo Procedimiento': f.tipo_procedimiento,
-            'CUPS': f.cups,
-            'Estado': f.estado_solicitud,
-            'Fecha Solicitud': f.fecha_solicitud_cita,
-            'Fecha Cita': f.fecha_cita,
-            'Días Gestión': f.dias_diff,
-            'Barrera': f.barrera,
-            'Observaciones': f.observaciones,
-        })
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Seguimiento Vidanova"
 
-    df = pd.DataFrame(data)
-    response = HttpResponse(content_type='application/vnd.ms-excel')
-    response['Content-Disposition'] = 'attachment; filename="Reporte_Seguimiento_Vidanova.xlsx"'
-    df.to_excel(response, index=False, engine='openpyxl')
+    headers = [
+        'Documento', 'Paciente', 'Edad', 'Género', 'Aseguradora (EPS)', 
+        'Procedimiento', 'CUPS', 'Estado', 'F. Solicitud', 'F. Cita', 
+        'Días Gestión', 'Barrera', 'Observaciones'
+    ]
+    ws.append(headers)
+
+    header_fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid") 
+    header_font = Font(color="FFFFFF", bold=True, size=11)
+    
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    for f in queryset:
+        row = [
+            f.patient.numero_documento,
+            f.patient.nombre_completo,
+            f.patient.edad,
+            f.patient.genero,
+            f.entidad_aseguradora,
+            f.tipo_procedimiento,
+            f.cups,
+            f.estado_solicitud,
+            f.fecha_solicitud_cita,
+            f.fecha_cita,
+            f.dias_diff,
+            f.barrera,
+            f.observaciones,
+        ]
+        ws.append(row)
+
+    ws.auto_filter.ref = ws.dimensions
+    
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="Reporte_Gerencial_Vidanova.xlsx"'
+    wb.save(response)
     return response
 
-# --- 4. ANÁLISIS GERENCIAL ---
+# --- 4. ANÁLISIS GERENCIAL (LA QUE FALTABA) ---
+@login_required
 def analisis_institucional(request):
     metrics = compute_institutional_metrics_db()
     total_rows = FollowUp.objects.count()
@@ -219,40 +217,27 @@ def analisis_institucional(request):
     }
     return render(request, 'analisis_institucional.html', context)
 
-# --- 5. CRUD (DETALLES, EDITAR, ELIMINAR) ---
-
+# --- 5. CRUD ---
+@login_required
 def followup_detail(request, pk):
     followup = get_object_or_404(FollowUp, pk=pk)
     return render(request, 'followup_detail.html', {'followup': followup})
 
+@login_required
 def editar_followup(request, pk):
     followup = get_object_or_404(FollowUp, pk=pk)
-    
     if request.method == 'POST':
         form = FollowUpForm(request.POST, instance=followup)
         if form.is_valid():
-            # --- LÓGICA DE BITÁCORA ---
             nueva_nota = form.cleaned_data.get('nueva_observacion')
-            
             if nueva_nota:
-                # 1. Obtenemos datos de auditoría
-                usuario = request.user.username.title() # Ej: "Admin"
-                ahora = timezone.now().strftime("%d/%m/%Y %H:%M") # Ej: 03/12/2025 10:30
-                
-                # 2. Formateamos la entrada: [Fecha Usuario]: Texto
+                usuario = request.user.username.title()
+                ahora = timezone.now().strftime("%d/%m/%Y %H:%M")
                 entrada_bitacora = f"[{ahora} - {usuario}]: {nueva_nota}"
-                
-                # 3. Concatenamos (Lo nuevo arriba)
                 historial_previo = followup.observaciones or ""
-                # Agregamos salto de línea si ya había historia
-                if historial_previo:
-                    followup.observaciones = f"{entrada_bitacora}\n{historial_previo}"
-                else:
-                    followup.observaciones = entrada_bitacora
+                followup.observaciones = f"{entrada_bitacora}\n{historial_previo}"
             
-            # Guardamos (Django guarda el campo observaciones modificado automáticamente)
             form.save()
-            
             messages.success(request, f"Gestión de {followup.patient.nombre_completo} registrada.")
             return redirect('followup_dashboard')
     else:
@@ -264,6 +249,7 @@ def editar_followup(request, pk):
         'patient': followup.patient
     })
 
+@login_required
 def agregar_followup(request, patient_id):
     from patients.models import Patient
     patient = get_object_or_404(Patient, pk=patient_id)
@@ -284,6 +270,7 @@ def agregar_followup(request, patient_id):
         'patient': patient
     })
 
+@login_required
 def eliminar_followup(request, pk):
     followup = get_object_or_404(FollowUp, pk=pk)
     if request.method == 'POST':
@@ -292,20 +279,11 @@ def eliminar_followup(request, pk):
         return redirect('followup_dashboard')
     return render(request, 'followup_confirm_delete.html', {'followup': followup})
 
-def ver_datos_siisa(request):
-    return redirect('followup_dashboard')
-# --- 6. ACCIONES MASIVAS (BULK ACTIONS) ---
-
+# --- 6. ACCIONES MASIVAS ---
 @login_required
 def actualizacion_masiva(request):
-    """
-    Procesa acciones masivas: Estado + Nota en Bitácora + Fecha Cita.
-    """
     if request.method == 'POST':
-        # 1. Obtener datos del Modal
-        # IDs viene como un string separado por comas desde el JS: "1,4,5"
         ids_str = request.POST.get('selected_ids', '')
-        
         nuevo_estado = request.POST.get('bulk_status')
         nueva_nota = request.POST.get('bulk_observation')
         nueva_fecha_cita = request.POST.get('bulk_date')
@@ -318,44 +296,60 @@ def actualizacion_masiva(request):
         registros = FollowUp.objects.filter(id__in=ids_list)
         count = registros.count()
         updated_objs = []
-
-        # Datos de auditoría
         usuario = request.user.username.title()
         ahora = timezone.now().strftime("%d/%m/%Y %H:%M")
 
-        # 2. Iterar y modificar en memoria (Para la bitácora)
         for r in registros:
-            cambios_realizados = False
-
-            # A. Cambio de Estado
+            cambios = False
             if nuevo_estado:
                 r.estado_solicitud = nuevo_estado
-                cambios_realizados = True
-
-            # B. Cambio de Fecha
+                cambios = True
             if nueva_fecha_cita:
                 r.fecha_cita = nueva_fecha_cita
-                cambios_realizados = True
-
-            # C. Inyección en Bitácora (Append)
+                cambios = True
             if nueva_nota:
                 entrada = f"[{ahora} - {usuario} - MASIVO]: {nueva_nota}"
                 historial_previo = r.observaciones or ""
                 r.observaciones = f"{entrada}\n{historial_previo}"
-                cambios_realizados = True
+                cambios = True
             
-            if cambios_realizados:
-                updated_objs.append(r)
+            if cambios: updated_objs.append(r)
 
-        # 3. Guardado Eficiente (Bulk Update)
         if updated_objs:
-            fields_to_update = ['observaciones']
-            if nuevo_estado: fields_to_update.append('estado_solicitud')
-            if nueva_fecha_cita: fields_to_update.append('fecha_cita')
+            fields = ['observaciones']
+            if nuevo_estado: fields.append('estado_solicitud')
+            if nueva_fecha_cita: fields.append('fecha_cita')
+            FollowUp.objects.bulk_update(updated_objs, fields)
+            messages.success(request, f"✅ Se gestionaron {count} pacientes.")
             
-            FollowUp.objects.bulk_update(updated_objs, fields_to_update)
-            messages.success(request, f"✅ Se gestionaron {count} pacientes correctamente.")
-        else:
-            messages.info(request, "No se aplicaron cambios.")
-            
+    return redirect('followup_dashboard')
+
+# --- 7. AUDITORÍA DE DATOS ---
+@login_required
+def auditoria_calidad(request):
+    total_registros = FollowUp.objects.count()
+    total_pacientes = FollowUp.objects.values('patient').distinct().count()
+    cups_distintos = FollowUp.objects.values('cups').distinct().count()
+
+    posibles_duplicados = FollowUp.objects.values(
+        'patient__numero_documento', 'patient__nombre_1', 
+        'fecha_solicitud_cita', 'tipo_procedimiento'
+    ).annotate(cantidad=Count('id')).filter(cantidad__gt=1).order_by('-cantidad')[:50]
+
+    sin_eps = FollowUp.objects.filter(Q(entidad_aseguradora__isnull=True) | Q(entidad_aseguradora__exact='')).count()
+    sin_cups = FollowUp.objects.filter(Q(cups__isnull=True) | Q(cups__exact='')).count()
+    fechas_malas = FollowUp.objects.filter(fecha_cita__lt=F('fecha_solicitud_cita')).count()
+
+    context = {
+        'total': total_registros,
+        'pacientes': total_pacientes,
+        'cups_unicos': cups_distintos,
+        'duplicados': posibles_duplicados,
+        'sin_eps': sin_eps,
+        'sin_cups': sin_cups,
+        'fechas_malas': fechas_malas
+    }
+    return render(request, 'auditoria.html', context)
+
+def ver_datos_siisa(request):
     return redirect('followup_dashboard')

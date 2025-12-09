@@ -21,4 +21,5 @@ urlpatterns = [
     path('eliminar/<int:pk>/', views.eliminar_followup, name='eliminar_followup'),
     path('exportar/', views.exportar_excel, name='exportar_excel'),
     path('acciones-masivas/', views.actualizacion_masiva, name='actualizacion_masiva'),
+    path('auditoria-calidad/', views.auditoria_calidad, name='auditoria_calidad'),
 ]
