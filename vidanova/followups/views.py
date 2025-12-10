@@ -11,7 +11,7 @@ from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
-from .models import FollowUp
+from .models import FollowUp, MasterCUP
 from .forms import FollowUpForm, UploadFileForm
 from .services import (
     importar_archivo_masivo, 
@@ -20,6 +20,44 @@ from .services import (
     compute_barriers,
     compute_institutional_metrics_db
 )
+
+@login_required
+def sembrar_cups(request):
+    """
+    Ingeniería Inversa: Recorre los seguimientos existentes, extrae los CUPS
+    y los guarda en el Maestro para que sean clasificados.
+    """
+    if not request.user.is_superuser:
+        return redirect('followup_dashboard')
+        
+    # Traemos todos los pares únicos (CUPS, Procedimiento Original)
+    existentes = FollowUp.objects.exclude(cups__isnull=True).exclude(cups='').values('cups', 'tipo_procedimiento').distinct()
+    
+    creados = 0
+    for item in existentes:
+        codigo = item['cups'].strip().upper()
+        desc = item['tipo_procedimiento']
+        
+        # Intentamos adivinar el grupo basado en lo que ya dice el sistema
+        grupo_inicial = 'PENDIENTE'
+        if 'CONSULTA' in desc: grupo_inicial = 'CONSULTA'
+        elif 'LABORATORIO' in desc: grupo_inicial = 'LABORATORIO'
+        elif 'IMAGEN' in desc: grupo_inicial = 'IMAGEN'
+        elif 'QUIMIO' in desc: grupo_inicial = 'QUIMIOTERAPIA'
+        elif 'RADIO' in desc: grupo_inicial = 'RADIOTERAPIA'
+        elif 'CIRUGIA' in desc: grupo_inicial = 'CIRUGIA'
+
+        obj, created = MasterCUP.objects.get_or_create(
+            codigo=codigo,
+            defaults={
+                'descripcion': desc,
+                'grupo': grupo_inicial
+            }
+        )
+        if created: creados += 1
+
+    messages.success(request, f"🌱 Cosecha finalizada. Se aprendieron {creados} códigos nuevos.")
+    return redirect('followup_dashboard')
 
 # --- 1. TABLERO PRINCIPAL (DASHBOARD) ---
 @login_required
@@ -32,6 +70,7 @@ def followup_dashboard(request):
     procedure = request.GET.get('procedure')
     eps = request.GET.get('eps')
     barrier = request.GET.get('barrier')
+    agrupador = request.GET.get('agrupador')
     q_search = request.GET.get('q')
 
     if date_from: queryset = queryset.filter(fecha_solicitud_cita__gte=date_from)
@@ -40,6 +79,7 @@ def followup_dashboard(request):
     if procedure: queryset = queryset.filter(tipo_procedimiento__icontains=procedure)
     if eps: queryset = queryset.filter(entidad_aseguradora=eps)
     if barrier: queryset = queryset.filter(barrera=barrier)
+    if agrupador: queryset = queryset.filter(agrupador=agrupador)
     
     if q_search:
         queryset = queryset.filter(
@@ -50,9 +90,15 @@ def followup_dashboard(request):
             Q(cups__icontains=q_search)
         )
 
+    # --- AQUÍ ESTÁN LAS OPCIONES DINÁMICAS ---
     eps_options = FollowUp.objects.exclude(entidad_aseguradora__isnull=True).exclude(entidad_aseguradora='').values_list('entidad_aseguradora', flat=True).distinct().order_by('entidad_aseguradora')
     barrier_options = FollowUp.objects.exclude(barrera__isnull=True).exclude(barrera='').values_list('barrera', flat=True).distinct().order_by('barrera')
+    agrupador_options = FollowUp.objects.exclude(agrupador__isnull=True).exclude(agrupador='').values_list('agrupador', flat=True).distinct().order_by('agrupador')
+    
+    # NUEVO: Lista dinámica de Procedimientos (Oncología, Consulta, etc.)
+    procedure_options = FollowUp.objects.exclude(tipo_procedimiento__isnull=True).exclude(tipo_procedimiento='').values_list('tipo_procedimiento', flat=True).distinct().order_by('tipo_procedimiento')
 
+    # ... Resto de KPIs y Estadísticas (Igual que antes) ...
     grand_total = FollowUp.objects.count()
     total_registros_filtrados = queryset.count()
     pct_global = 0
@@ -97,6 +143,8 @@ def followup_dashboard(request):
         'stats': stats,
         'eps_options': eps_options,       
         'barrier_options': barrier_options,
+        'agrupador_options': agrupador_options,
+        'procedure_options': procedure_options, # <--- Enviamos la nueva lista
         'estado_procedimiento_labels': kpi_status['labels'],
         'estado_procedimiento_values': kpi_status['values'],
         'oportunidad_procedimiento_labels': kpi_procedure['procedimiento_labels'],
@@ -281,12 +329,24 @@ def eliminar_followup(request, pk):
 
 # --- 6. ACCIONES MASIVAS ---
 @login_required
+# --- EN FOLLOWUPS/VIEWS.PY ---
+
+@login_required
 def actualizacion_masiva(request):
+    """
+    Procesa acciones masivas: Estado + Nota + Fecha + Prestador + Tipo Paciente.
+    """
     if request.method == 'POST':
         ids_str = request.POST.get('selected_ids', '')
+        
+        # Capturamos los campos originales
         nuevo_estado = request.POST.get('bulk_status')
         nueva_nota = request.POST.get('bulk_observation')
         nueva_fecha_cita = request.POST.get('bulk_date')
+        
+        # --- NUEVOS CAMPOS ---
+        nuevo_tipo_paciente = request.POST.get('bulk_patient_type')
+        nuevo_prestador = request.POST.get('bulk_provider')
         
         if not ids_str:
             messages.warning(request, "⚠️ No se seleccionaron registros.")
@@ -296,31 +356,53 @@ def actualizacion_masiva(request):
         registros = FollowUp.objects.filter(id__in=ids_list)
         count = registros.count()
         updated_objs = []
+
+        # Datos de auditoría para la nota
         usuario = request.user.username.title()
         ahora = timezone.now().strftime("%d/%m/%Y %H:%M")
 
         for r in registros:
             cambios = False
+
             if nuevo_estado:
                 r.estado_solicitud = nuevo_estado
                 cambios = True
+            
             if nueva_fecha_cita:
                 r.fecha_cita = nueva_fecha_cita
                 cambios = True
+                
+            # Actualizar Tipo de Paciente
+            if nuevo_tipo_paciente:
+                r.tipo_paciente = nuevo_tipo_paciente
+                cambios = True
+                
+            # Actualizar Prestador
+            if nuevo_prestador:
+                r.prestador = nuevo_prestador
+                cambios = True
+
             if nueva_nota:
                 entrada = f"[{ahora} - {usuario} - MASIVO]: {nueva_nota}"
                 historial_previo = r.observaciones or ""
                 r.observaciones = f"{entrada}\n{historial_previo}"
                 cambios = True
             
-            if cambios: updated_objs.append(r)
+            if cambios:
+                updated_objs.append(r)
 
         if updated_objs:
             fields = ['observaciones']
             if nuevo_estado: fields.append('estado_solicitud')
             if nueva_fecha_cita: fields.append('fecha_cita')
+            # Agregamos los nuevos campos a la lista de actualización
+            if nuevo_tipo_paciente: fields.append('tipo_paciente')
+            if nuevo_prestador: fields.append('prestador')
+            
             FollowUp.objects.bulk_update(updated_objs, fields)
-            messages.success(request, f"✅ Se gestionaron {count} pacientes.")
+            messages.success(request, f"✅ Se actualizaron {count} pacientes correctamente.")
+        else:
+            messages.info(request, "No se aplicaron cambios.")
             
     return redirect('followup_dashboard')
 

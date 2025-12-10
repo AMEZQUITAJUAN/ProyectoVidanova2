@@ -3,6 +3,34 @@ from django.db import models
 from patients.models import Patient
 from datetime import date
 
+# --- EN FOLLOWUPS/MODELS.PY ---
+
+class MasterCUP(models.Model):
+    codigo = models.CharField(max_length=20, unique=True, db_index=True)
+    descripcion = models.CharField(max_length=255, null=True, blank=True)
+    
+    # Las categorías oficiales que definimos
+    CATEGORIAS = [
+        ('PENDIENTE', '⚠️ PENDIENTE CLASIFICAR'),
+        ('CONSULTA', 'CONSULTA ESPECIALIZADA'),
+        ('QUIMIOTERAPIA', 'QUIMIOTERAPIA'),
+        ('RADIOTERAPIA', 'RADIOTERAPIA'),
+        ('CIRUGIA', 'CIRUGÍA'),
+        ('IMAGEN', 'IMAGENOLOGÍA'),
+        ('LABORATORIO', 'LABORATORIO CLÍNICO'),
+        ('DOLOR', 'CLÍNICA DEL DOLOR'),
+        ('ESTANCIA', 'ESTANCIA / HOSPITALIZACIÓN'),
+        ('DIAGNOSTICO', 'PROCEDIMIENTO DIAGNÓSTICO'),
+        ('COMPLEMENTARIO', 'SERVICIO COMPLEMENTARIO'),
+        ('ONCOLOGIA', 'ONCOLOGÍA GENERAL'),
+        ('OTROS', 'OTROS SERVICIOS'),
+    ]
+    
+    grupo = models.CharField(max_length=50, choices=CATEGORIAS, default='PENDIENTE')
+    
+    def __str__(self):
+        return f"{self.codigo} - {self.grupo}"
+
 class FollowUp(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='seguimientos')
 
@@ -42,6 +70,7 @@ class FollowUp(models.Model):
     ruta = models.CharField(max_length=255, null=True, blank=True)
     mes_ordenamiento = models.CharField(max_length=50, null=True, blank=True)
     semana_ordenamiento = models.CharField(max_length=50, null=True, blank=True)
+    agrupador = models.CharField(max_length=255, null=True, blank=True, db_index=True)
 
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 

@@ -110,16 +110,38 @@
 
                         <!-- FILA 2: Procedimiento, EPS y Barreras (NUEVO) -->
                         <div class="row g-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold small text-muted">Procedimiento</label>
                                 <select name="procedure" class="form-select">
-                                    <option value="" {% if not filtros.procedure %}selected{% endif %}>Todos</option>
-                                    <option value="CONSULTA" {% if filtros.procedure == 'CONSULTA' %}selected{% endif %}>Consulta</option>
+                                    <option value="">Todos</option>
+                                    
+                                    <!-- Categorías Clínicas Clave -->
+                                    <option value="CONSULTA" {% if filtros.procedure == 'CONSULTA' %}selected{% endif %}>Consulta Externa</option>
                                     <option value="QUIMIOTERAPIA" {% if filtros.procedure == 'QUIMIOTERAPIA' %}selected{% endif %}>Quimioterapia</option>
                                     <option value="RADIOTERAPIA" {% if filtros.procedure == 'RADIOTERAPIA' %}selected{% endif %}>Radioterapia</option>
                                     <option value="CIRUGIA" {% if filtros.procedure == 'CIRUGIA' %}selected{% endif %}>Cirugía</option>
-                                    <option value="IMAGENES" {% if filtros.procedure == 'IMAGENES' %}selected{% endif %}>Imágenes</option>
-                                    <option value="LABORATORIO" {% if filtros.procedure == 'LABORATORIO' %}selected{% endif %}>Laboratorio</option>
+                                    <option value="IMAGEN" {% if filtros.procedure == 'IMAGEN' %}selected{% endif %}>Imagenología</option>
+                                    <option value="LABORATORIO" {% if filtros.procedure == 'LABORATORIO' %}selected{% endif %}>Laboratorio Clínico</option>
+                                    
+                                    <!-- Categorías de Soporte -->
+                                    <option value="DOLOR" {% if filtros.procedure == 'DOLOR' %}selected{% endif %}>Clínica del Dolor</option>
+                                    <option value="ESTANCIA" {% if filtros.procedure == 'ESTANCIA' %}selected{% endif %}>Estancia</option>
+                                    <option value="DIAGNOSTICO" {% if filtros.procedure == 'DIAGNOSTICO' %}selected{% endif %}>Proc. Diagnóstico</option>
+                                    <option value="COMPLEMENTARIO" {% if filtros.procedure == 'COMPLEMENTARIO' %}selected{% endif %}>Servicio Complementario</option>
+                                    <option value="ONCOLOGIA" {% if filtros.procedure == 'ONCOLOGIA' %}selected{% endif %}>Oncología (General)</option>
+                                </select>
+                            </div>
+
+                            <!-- Selector Agrupador (NUEVO) -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small text-muted">Cohorte / Agrupador</label>
+                                <select name="agrupador" class="form-select">
+                                    <option value="">Todos los grupos</option>
+                                    {% for g in agrupador_options %}
+                                        <option value="{{ g }}" {% if filtros.agrupador == g %}selected{% endif %}>
+                                            {{ g }}
+                                        </option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             
@@ -340,8 +362,18 @@
                             <td class="mw-acciones">
                                 <div class="btn-group">
                                     <a href="{% url 'followup_detail' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-eye text-primary"></i></a>
-                                    <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-pen text-warning"></i></a>
-                                    <a href="{% url 'eliminar_followup' r.id %}" class="btn btn-sm btn-light border"><i class="fas fa-trash text-danger"></i></a>
+                                    {% if request.user|has_group:"Gestores" %}
+                                    <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-light border" title="Editar">
+                                        <i class="fas fa-pen text-warning"></i>
+                                    </a>
+                                    {% endif %}
+                                    
+                                    <!-- ELIMINAR: SOLO SUPERUSUARIO -->
+                                    {% if user.is_superuser %}
+                                    <a href="{% url 'eliminar_followup' r.id %}" class="btn btn-sm btn-light border" title="Eliminar">
+                                        <i class="fas fa-trash text-danger"></i>
+                                    </a>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -389,35 +421,69 @@
                     </div>
                     
                     <div class="modal-body bg-light">
-                        <div class="alert alert-info py-2 small">
-                            Aplicando cambios a <strong id="modalCount">0</strong> pacientes seleccionados.
-                        </div>
-                        
-                        <!-- Opción 1: Estado -->
-                        <div class="card p-3 border-0 shadow-sm mb-3">
-                            <label class="form-label fw-bold text-primary">1. Cambiar Estado</label>
-                            <select name="bulk_status" class="form-select">
-                                <option value="" selected>-- Mantener estado actual --</option>
-                                <option value="EN_GESTION">EN GESTIÓN</option>
-                                <option value="AGENDADO">AGENDADO</option>
-                                <option value="REALIZADO">REALIZADO</option>
-                                <option value="PENDIENTE">PENDIENTE</option>
-                                <option value="CANCELADO">CANCELADO</option>
-                            </select>
+                    <p class="text-muted small mb-3">
+                        Aplicando cambios a <strong id="modalCount">0</strong> pacientes seleccionados.
+                        <span class="text-danger">* Deja en blanco lo que no quieras cambiar.</span>
+                    </p>
+                    
+                    <div class="row g-2">
+                        <!-- 1. ESTADO Y FECHA (Mitad y Mitad) -->
+                        <div class="col-md-6">
+                            <div class="card p-3 border-0 shadow-sm h-100">
+                                <label class="form-label fw-bold text-primary">Estado Solicitud</label>
+                                <select name="bulk_status" class="form-select form-select-sm">
+                                    <option value="" selected>-- No cambiar --</option>
+                                    <option value="EN_GESTION">EN GESTIÓN</option>
+                                    <option value="AGENDADO">AGENDADO</option>
+                                    <option value="REALIZADO">REALIZADO</option>
+                                    <option value="PENDIENTE">PENDIENTE</option>
+                                    <option value="CANCELADO">CANCELADO</option>
+                                </select>
+                                
+                                <label class="form-label fw-bold text-muted mt-3">Fecha Cita</label>
+                                <input type="date" name="bulk_date" class="form-control form-control-sm">
+                            </div>
                         </div>
 
-                        <!-- Opción 2: Bitácora -->
-                        <div class="card p-3 border-0 shadow-sm mb-3">
-                            <label class="form-label fw-bold text-success">2. Nota de Bitácora</label>
-                            <textarea name="bulk_observation" class="form-control" rows="2" placeholder="Ej: Se intentó contactar sin éxito..."></textarea>
-                        </div>
+                        <!-- 2. CLASIFICACIÓN (NUEVO BLOQUE) -->
+                        <div class="col-md-6">
+                            <div class="card p-3 border-0 shadow-sm h-100">
+                                <label class="form-label fw-bold text-dark">Tipo de Paciente</label>
+                                <select name="bulk_patient_type" class="form-select form-select-sm">
+                                    <option value="" selected>-- No cambiar --</option>
+                                    <option value="INCIDENTE">INCIDENTE</option>
+                                    <option value="PREVALENTE">PREVALENTE</option>
+                                </select>
 
-                        <!-- Opción 3: Fecha -->
-                        <div class="card p-3 border-0 shadow-sm">
-                            <label class="form-label fw-bold text-muted">3. Asignar Fecha Cita</label>
-                            <input type="date" name="bulk_date" class="form-control">
+                                <label class="form-label fw-bold text-dark mt-3">Prestador Asignado</label>
+                                <select name="bulk_provider" class="form-select form-select-sm">
+                                    <option value="" selected>-- No cambiar --</option>
+                                    <option value="Vidanova">Vidanova</option> <!-- La más importante -->
+                                    <option value="Andes del sur">Andes del sur</option>
+                                    <option value="BIOS">BIOS</option>
+                                    <option value="Cardio Imagenes">Cardio Imágenes</option>
+                                    <option value="CIMO">CIMO</option>
+                                    <option value="Clinica Imbanaco">Clínica Imbanaco</option>
+                                    <option value="Clinica La Estancia">Clínica La Estancia</option>
+                                    <option value="Clinica San Rafael">Clínica San Rafael</option>
+                                    <option value="Clinica Santa Gracia">Clínica Santa Gracia</option>
+                                    <option value="Dumian">Dumian</option>
+                                    <option value="Fundacion Corazon y Pulmon">Fundación Corazón y Pulmón</option>
+                                    <option value="Gamanuclear">Gamanuclear</option>
+                                    <option value="Laboratorio Adriana Correa">Laboratorio Adriana Correa</option>
+                                    <option value="Previred">Previred</option>
+                                    <option value="Otros">Otros</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- 3. BITÁCORA (Ancho completo abajo) -->
+                    <div class="card p-3 border-0 shadow-sm mt-2">
+                        <label class="form-label fw-bold text-success">Nota de Gestión (Bitácora)</label>
+                        <textarea name="bulk_observation" class="form-control" rows="2" placeholder="Ej: Se asigna prestador Vidanova..."></textarea>
+                    </div>
+                </div>
                     
                     <div class="modal-footer border-0 bg-white">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>

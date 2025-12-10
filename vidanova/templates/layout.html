@@ -1,4 +1,4 @@
-{% load static %}
+{% load static followups_extras %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -29,41 +29,60 @@
             <!-- Menú -->
             <ul class="nav-list">
                 
+                 <!-- OPERACIÓN: Visible para Gestores y Admin -->
                 <div class="menu-label">Operación</div>
                 <li>
-                    <a href="{% url 'followup_dashboard' %}" class="{% if '/seguimiento/' == request.path %}active{% endif %}">
+                    <a href="{% url 'followup_dashboard' %}" class="...">
                         <i class='bx bxs-dashboard'></i>
                         <span class="links_name">Tablero</span>
                     </a>
                     <span class="tooltip">Tablero</span>
                 </li>
+
+                <!-- CARGAR: Solo Gestores -->
+                {% if request.user|has_group:"Gestores" %}
                 <li>
-                    <a href="{% url 'cargar_datos' %}" class="{% if 'cargar-datos' in request.path %}active{% endif %}">
+                    <a href="{% url 'cargar_datos' %}" class="...">
                         <i class='bx bxs-cloud-upload'></i>
                         <span class="links_name">Cargar</span>
                     </a>
                     <span class="tooltip">Cargar</span>
                 </li>
+                {% endif %}
 
-                <!-- Item Pacientes (Nuevo) -->
-            <li>
-                <a href="{% url 'patient_directory' %}" class="{% if 'pacientes' in request.path %}active{% endif %}">
-                    <i class='bx bxs-group'></i> <!-- Icono de grupo -->
-                    <span class="links_name">Pacientes</span>
-                </a>
-                <span class="tooltip">Pacientes</span>
-            </li>
+                <!-- PACIENTES: Todos -->
+                <li>
+                    <a href="{% url 'patient_directory' %}" class="...">
+                        <i class='bx bxs-group'></i>
+                        <span class="links_name">Pacientes</span>
+                    </a>
+                    <span class="tooltip">Pacientes</span>
+                </li>
 
+                <!-- ESTRATEGIA: Para Gerencia -->
                 <div class="menu-label">Estrategia</div>
                 <li>
-                    <a href="{% url 'analisis_institucional' %}" class="{% if 'analisis-institucional' in request.path %}active{% endif %}">
+                    <a href="{% url 'analisis_institucional' %}" class="...">
                         <i class='bx bxs-pie-chart-alt-2'></i>
                         <span class="links_name">Gerencia</span>
                     </a>
                     <span class="tooltip">Gerencia</span>
                 </li>
 
+                <!-- SISTEMA: Solo Admin y Gerencia (Auditoría) -->
+                {% if request.user|has_group:"Gerencia" or user.is_superuser %}
                 <div class="menu-label">Sistema</div>
+                <li>
+                    <a href="{% url 'auditoria_calidad' %}" class="...">
+                        <i class='bx bxs-check-shield'></i>
+                        <span class="links_name">Auditoría</span>
+                    </a>
+                    <span class="tooltip">Auditoría</span>
+                </li>
+                {% endif %}
+
+                <!-- BASE DE DATOS: Solo Superusuario -->
+                {% if user.is_superuser %}
                 <li>
                     <a href="/admin" target="_blank">
                         <i class='bx bxs-data'></i>
@@ -71,15 +90,8 @@
                     </a>
                     <span class="tooltip">Admin DB</span>
                 </li>
+                {% endif %}
 
-                <li class="mt-1">
-                    <a href="{% url 'auditoria_calidad' %}" class="{% if 'auditoria' in request.path %}active{% endif %}">
-                        <i class='bx bxs-check-shield'></i>
-                        <span class="links_name">Auditoría</span>
-                    </a>
-                    <span class="tooltip">Auditoría</span>
-                </li>
-                
             </ul>
         </div>
 
