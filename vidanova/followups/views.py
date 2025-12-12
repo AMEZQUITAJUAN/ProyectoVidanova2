@@ -10,6 +10,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
+from django.http import JsonResponse
 
 from .models import FollowUp, MasterCUP
 from .forms import FollowUpForm, UploadFileForm
@@ -328,25 +329,25 @@ def eliminar_followup(request, pk):
     return render(request, 'followup_confirm_delete.html', {'followup': followup})
 
 # --- 6. ACCIONES MASIVAS ---
-@login_required
-# --- EN FOLLOWUPS/VIEWS.PY ---
 
 @login_required
 def actualizacion_masiva(request):
     """
-    Procesa acciones masivas: Estado + Nota + Fecha + Prestador + Tipo Paciente.
+    Procesa acciones masivas: Estado, Fechas, Clasificación, Barreras y Bitácora.
     """
     if request.method == 'POST':
         ids_str = request.POST.get('selected_ids', '')
         
-        # Capturamos los campos originales
+        # 1. Captura de todos los campos del Modal
         nuevo_estado = request.POST.get('bulk_status')
-        nueva_nota = request.POST.get('bulk_observation')
-        nueva_fecha_cita = request.POST.get('bulk_date')
+        nueva_fecha_cita = request.POST.get('bulk_date_cita')
+        nueva_fecha_solicitud = request.POST.get('bulk_date_solicitud') # <--- NUEVO
         
-        # --- NUEVOS CAMPOS ---
         nuevo_tipo_paciente = request.POST.get('bulk_patient_type')
         nuevo_prestador = request.POST.get('bulk_provider')
+        nueva_barrera = request.POST.get('bulk_barrier') # <--- NUEVO
+        
+        nueva_nota = request.POST.get('bulk_observation')
         
         if not ids_str:
             messages.warning(request, "⚠️ No se seleccionaron registros.")
@@ -357,10 +358,10 @@ def actualizacion_masiva(request):
         count = registros.count()
         updated_objs = []
 
-        # Datos de auditoría para la nota
         usuario = request.user.username.title()
         ahora = timezone.now().strftime("%d/%m/%Y %H:%M")
 
+        # 2. Aplicar cambios en memoria
         for r in registros:
             cambios = False
 
@@ -371,15 +372,21 @@ def actualizacion_masiva(request):
             if nueva_fecha_cita:
                 r.fecha_cita = nueva_fecha_cita
                 cambios = True
+
+            if nueva_fecha_solicitud:
+                r.fecha_solicitud_cita = nueva_fecha_solicitud
+                cambios = True
                 
-            # Actualizar Tipo de Paciente
             if nuevo_tipo_paciente:
                 r.tipo_paciente = nuevo_tipo_paciente
                 cambios = True
                 
-            # Actualizar Prestador
             if nuevo_prestador:
                 r.prestador = nuevo_prestador
+                cambios = True
+
+            if nueva_barrera:
+                r.barrera = nueva_barrera
                 cambios = True
 
             if nueva_nota:
@@ -391,13 +398,15 @@ def actualizacion_masiva(request):
             if cambios:
                 updated_objs.append(r)
 
+        # 3. Guardar en BD
         if updated_objs:
             fields = ['observaciones']
             if nuevo_estado: fields.append('estado_solicitud')
             if nueva_fecha_cita: fields.append('fecha_cita')
-            # Agregamos los nuevos campos a la lista de actualización
+            if nueva_fecha_solicitud: fields.append('fecha_solicitud_cita')
             if nuevo_tipo_paciente: fields.append('tipo_paciente')
             if nuevo_prestador: fields.append('prestador')
+            if nueva_barrera: fields.append('barrera')
             
             FollowUp.objects.bulk_update(updated_objs, fields)
             messages.success(request, f"✅ Se actualizaron {count} pacientes correctamente.")
@@ -435,3 +444,41 @@ def auditoria_calidad(request):
 
 def ver_datos_siisa(request):
     return redirect('followup_dashboard')
+
+# --- 7. MÓDULO DE CALENDARIO ---
+
+@login_required
+def calendar_view(request):
+    """Renderiza la página del calendario (el contenedor)."""
+    return render(request, 'calendar.html')
+
+@login_required
+def calendar_api(request):
+    """
+    API interna que devuelve las citas en formato JSON para FullCalendar.
+    """
+    # Solo traemos registros que tengan fecha de cita asignada
+    citas = FollowUp.objects.filter(fecha_cita__isnull=False).select_related('patient')
+    
+    eventos = []
+    for c in citas:
+        # Definir color según procedimiento
+        proc = str(c.tipo_procedimiento).upper()
+        color = '#6c757d' # Gris (Default)
+        
+        if 'CONSULTA' in proc: color = '#3b82f6' # Azul
+        elif 'QUIMIO' in proc: color = '#8b5cf6' # Morado
+        elif 'RADIO' in proc: color = '#f59e0b'  # Naranja
+        elif 'CIRUGIA' in proc: color = '#ef4444' # Rojo
+        elif 'IMAGEN' in proc: color = '#10b981'  # Verde
+        elif 'LABORATORIO' in proc: color = '#0ea5e9' # Azul Cielo
+
+        eventos.append({
+            'title': f"{c.patient.nombre_1} {c.patient.apellido_1} - {c.tipo_procedimiento}",
+            'start': c.fecha_cita.isoformat(), # Formato YYYY-MM-DD
+            'url': f"/seguimiento/detalle/{c.id}/", # Link al hacer clic
+            'color': color,
+            'description': f"EPS: {c.entidad_aseguradora}"
+        })
+    
+    return JsonResponse(eventos, safe=False)

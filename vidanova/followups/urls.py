@@ -23,4 +23,6 @@ urlpatterns = [
     path('acciones-masivas/', views.actualizacion_masiva, name='actualizacion_masiva'),
     path('auditoria-calidad/', views.auditoria_calidad, name='auditoria_calidad'),
     path('sembrar-cups/', views.sembrar_cups, name='sembrar_cups'),
+    path('calendario/', views.calendar_view, name='calendar_view'),
+    path('api/eventos/', views.calendar_api, name='calendar_api'),
 ]

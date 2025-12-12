@@ -1,112 +1,118 @@
 {% extends 'layout.html' %}
-{% block title %}Editar Seguimiento{% endblock %}
+{% block title %}Gestionar Caso{% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <div class="row justify-content-center">
-        <div class="col-lg-8">
+        <div class="col-lg-10"> <!-- Un poco más ancho para que quepa todo -->
+            
             <div class="card shadow border-0">
-                <div class="card-header bg-primary text-white p-3">
-                    <h5 class="mb-0"><i class="fas fa-pen-square me-2"></i>Gestionar Caso</h5>
-                    <small>{{ form.instance.patient.nombre_completo }}</small>
+                <!-- Encabezado con datos clave del paciente -->
+                <div class="card-header bg-primary text-white p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1"><i class="fas fa-user-edit me-2"></i>Gestionar Caso</h5>
+                        <h3 class="fw-bold mb-0">{{ form.instance.patient.nombre_completo }}</h3>
+                    </div>
+                    <div class="text-end">
+                        <div class="badge bg-white text-primary fs-6">{{ form.instance.patient.numero_documento }}</div>
+                        <div class="small mt-1 text-white-50">{{ form.instance.entidad_aseguradora }}</div>
+                    </div>
                 </div>
                 
                 <div class="card-body p-4">
                     <form method="post">
                         {% csrf_token %}
                         
-                        <div class="row g-3">
+                        <div class="row g-4">
                             
-                            <!-- DATOS CLAVE -->
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Estado Solicitud</label>
-                                {{ form.estado_solicitud }}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Procedimiento</label>
-                                {{ form.tipo_procedimiento }}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Fecha Solicitud</label>
-                                {{ form.fecha_solicitud_cita }}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Fecha Cita</label>
-                                {{ form.fecha_cita }}
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label fw-bold text-danger">Barrera</label>
-                                {{ form.barrera }}
-                            </div>
-
-                            <!-- AQUÍ ESTÁ LA BITÁCORA -->
-                            <hr class="my-4">
-                            
-                            <!-- Campo Nuevo (Verde) -->
-                            <!-- SECCIÓN DE BITÁCORA CON MACROS -->
-                            <div class="col-12">
-                                <label class="form-label fw-bold text-success">
-                                    <i class="fas fa-comment-medical me-1"></i> Nueva Nota de Gestión
-                                </label>
+                            <!-- COLUMNA 1: CLASIFICACIÓN Y ESTADO -->
+                            <div class="col-md-6 border-end">
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">Clasificación Administrativa</h6>
                                 
-                                <!-- BARRA DE BOTONES RÁPIDOS (MACROS) -->
-                                <div class="mb-2 d-flex flex-wrap gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMacro('Se llama al paciente, no contesta. ')">
-                                        <i class="fas fa-phone-slash text-danger"></i> No contesta
-                                    </button>
-                                    
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMacro('Celular apagado / Buzón de voz. ')">
-                                        <i class="fas fa-voicemail text-warning"></i> Buzón
-                                    </button>
-                                    
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMacro('Número equivocado / No existe. ')">
-                                        <i class="fas fa-ban text-muted"></i> Num. Errado
-                                    </button>
-
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMacro('Se contacta al paciente, informa que ya tiene cita para: ')">
-                                        <i class="fas fa-calendar-check text-success"></i> Ya tiene Cita
-                                    </button>
-
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMacro('Se envía información por WhatsApp. ')">
-                                        <i class="fab fa-whatsapp text-success"></i> WhatsApp
-                                    </button>
-                                    
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addMacro('Paciente indica que no ha sido autorizado por la EPS. ')">
-                                        <i class="fas fa-file-contract text-info"></i> Falta Aut.
-                                    </button>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Estado Solicitud</label>
+                                    {{ form.estado_solicitud }}
                                 </div>
 
-                                <!-- El campo de texto de Django -->
-                                {{ form.nueva_observacion }}
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted">Tipo de Paciente</label>
+                                        {{ form.tipo_paciente }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted">Prestador Asignado</label>
+                                        {{ form.prestador }}
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <label class="form-label fw-bold text-danger">Barrera de Acceso</label>
+                                    {{ form.barrera }}
+                                </div>
                             </div>
 
-                            <!-- SCRIPT PARA QUE FUNCIONEN LOS BOTONES -->
-                            <script>
-                                function addMacro(text) {
-                                    // Buscamos el textarea por su ID generado por Django
-                                    const textarea = document.getElementById('id_nueva_observacion');
-                                    if (textarea) {
-                                        // Agregamos el texto al final
-                                        textarea.value += text;
-                                        // Ponemos el foco para seguir escribiendo
-                                        textarea.focus();
-                                    }
-                                }
-                            </script>
-                            
-                            <!-- Campo Historial (Gris, Lectura) -->
-                            <div class="col-12 mt-3">
-                                <label class="form-label fw-bold text-muted">Historial de Bitácora</label>
-                                {{ form.observaciones }}
+                            <!-- COLUMNA 2: DETALLES DEL TRÁMITE -->
+                            <div class="col-md-6">
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">Datos del Procedimiento</h6>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Procedimiento / Servicio</label>
+                                    {{ form.tipo_procedimiento }}
+                                    <div class="form-text small text-muted">CUPS: {{ form.instance.cups|default:"-" }}</div>
+                                </div>
+
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted">Fecha Solicitud</label>
+                                        {{ form.fecha_solicitud_cita }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold text-success">Fecha Cita</label>
+                                        {{ form.fecha_cita }}
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- Ocultos -->
-                            <div class="d-none">{{ form.patient }}</div>
+                            <!-- SECCIÓN INFERIOR: BITÁCORA (Ya incluye tus Macros) -->
+                            <div class="col-12 mt-4">
+                                <div class="bg-light p-3 rounded border">
+                                    <label class="form-label fw-bold text-success">
+                                        <i class="fas fa-comment-medical me-1"></i> Nueva Nota de Gestión
+                                    </label>
+                                    
+                                    <!-- TUS MACROS -->
+                                    <div class="mb-2 d-flex flex-wrap gap-2">
+                                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="addMacro('Se llama, no contesta. ')"><i class="fas fa-phone-slash"></i> No contesta</button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="addMacro('Se informa cita asignada. ')"><i class="fas fa-check"></i> Cita OK</button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="addMacro('WhatsApp enviado. ')"><i class="fab fa-whatsapp"></i> WA</button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="addMacro('Número errado. ')"><i class="fas fa-ban"></i> Num. Mal</button>
+                                    </div>
+
+                                    {{ form.nueva_observacion }}
+                                </div>
+
+                                <div class="mt-3">
+                                    <label class="form-label small text-muted fw-bold">Historial Completo</label>
+                                    {{ form.observaciones }}
+                                </div>
+                            </div>
+
+                            <!-- Ocultos necesarios -->
+                            <div class="d-none">
+                                {{ form.patient }}
+                                {{ form.cups }}
+                                {{ form.entidad_aseguradora }} <!-- Ya se muestra arriba, lo ocultamos del form para no duplicar -->
+                            </div>
+
                         </div>
 
-                        <div class="d-flex justify-content-end gap-2 mt-4">
-                            <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
-                            <button type="submit" class="btn btn-primary px-4">Guardar Gestión</button>
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                            <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary px-4">
+                                <i class="fas fa-arrow-left me-2"></i>Volver
+                            </a>
+                            <button type="submit" class="btn btn-primary px-5 fw-bold shadow-sm">
+                                <i class="fas fa-save me-2"></i>Guardar Cambios
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -114,4 +120,14 @@
         </div>
     </div>
 </div>
+
+<script>
+    function addMacro(text) {
+        const textarea = document.getElementById('id_nueva_observacion');
+        if (textarea) {
+            textarea.value += text;
+            textarea.focus();
+        }
+    }
+</script>
 {% endblock %}

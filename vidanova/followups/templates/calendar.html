@@ -1,0 +1,80 @@
+{% extends 'layout.html' %}
+
+{% block title %}Agenda de Citas{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    
+    <!-- Encabezado y Leyenda -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-primary"><i class="far fa-calendar-alt me-2"></i>Agenda de Citas</h3>
+            <p class="text-muted">Visualización de carga de trabajo y programación.</p>
+        </div>
+        
+        <!-- Leyenda de Colores -->
+        <div class="d-flex gap-3 small">
+            <span class="d-flex align-items-center"><span class="badge rounded-circle p-1 me-2" style="background:#3b82f6;"> </span> Consulta</span>
+            <span class="d-flex align-items-center"><span class="badge rounded-circle p-1 me-2" style="background:#8b5cf6;"> </span> Quimioterapia</span>
+            <span class="d-flex align-items-center"><span class="badge rounded-circle p-1 me-2" style="background:#ef4444;"> </span> Cirugía</span>
+            <span class="d-flex align-items-center"><span class="badge rounded-circle p-1 me-2" style="background:#10b981;"> </span> Imágenes</span>
+        </div>
+    </div>
+
+    <!-- Contenedor del Calendario -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div id='calendar' style="min-height: 800px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- LIBRERÍA FULLCALENDAR -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth', // Vista mensual por defecto
+            locale: 'es',               // Idioma español
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,listWeek' // Botones de vista
+            },
+            buttonText: {
+                today: 'Hoy',
+                month: 'Mes',
+                week: 'Semana',
+                list: 'Lista'
+            },
+            events: "{% url 'calendar_api' %}", // <--- Aquí consume tu API
+            
+            eventClick: function(info) {
+                // Al hacer clic, abre el link en la misma pestaña
+                if (info.event.url) {
+                    window.location.href = info.event.url;
+                    info.jsEvent.preventDefault(); // Evita que abra en nueva pestaña si no quieres
+                }
+            },
+            
+            // Tooltip simple al pasar el mouse
+            eventDidMount: function(info) {
+                info.el.title = info.event.extendedProps.description || info.event.title;
+            }
+        });
+        
+        calendar.render();
+    });
+</script>
+
+<style>
+    /* Ajustes visuales para que se vea moderno */
+    .fc-header-toolbar { padding: 20px; }
+    .fc-daygrid-day-number { color: #1e293b; font-weight: bold; text-decoration: none; }
+    .fc-col-header-cell-cushion { color: #64748b; text-decoration: none; text-transform: uppercase; font-size: 0.8rem; }
+    .fc-event { cursor: pointer; border: none; }
+</style>
+{% endblock %}

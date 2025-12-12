@@ -59,6 +59,15 @@
                     <span class="tooltip">Pacientes</span>
                 </li>
 
+                <!-- Item Calendario -->
+                <li>
+                    <a href="{% url 'calendar_view' %}" class="{% if 'calendario' in request.path %}active{% endif %}">
+                        <i class='bx bxs-calendar'></i>
+                        <span class="links_name">Agenda</span>
+                    </a>
+                    <span class="tooltip">Agenda</span>
+                </li>
+
                 <!-- ESTRATEGIA: Para Gerencia -->
                 <div class="menu-label">Estrategia</div>
                 <li>
