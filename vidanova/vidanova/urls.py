@@ -23,4 +23,8 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
+    # Servir archivos estáticos (CSS, JS, IMGs del diseño)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
+    
+    # Servir archivos multimedia (Excels subidos)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
