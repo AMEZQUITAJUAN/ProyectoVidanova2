@@ -120,7 +120,15 @@
                 </li>
                 {% endif %}
 
-            </ul>
+                <!-- BOTÓN DE AYUDA -->
+                <li style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#helpModal">
+                        <i class='bx bxs-help-circle text-warning'></i>
+                        <span class="links_name">Ayuda / Manual</span>
+                    </a>
+                    <span class="tooltip">Ayuda</span>
+                </li>
+            </ul> <!-- Aquí cerraba tu lista original -->
         </div>
 
         <!-- FOOTER DE USUARIO RESTITUIDO -->
@@ -259,5 +267,105 @@
             }
         }
     </script>
+
+    <!-- === MODAL DE AYUDA Y MANUAL === -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bx bxs-book-open me-2"></i>Manual de Usuario Vidanova</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                
+                <p class="text-muted mb-4">Selecciona un tema para ver las instrucciones paso a paso:</p>
+
+                <div class="accordion" id="accordionHelp">
+                    
+                    <!-- TEMA 1: Carga de Archivos -->
+                    <div class="accordion-item border-0 shadow-sm mb-2">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#help1">
+                                <i class="bx bxs-cloud-upload me-2"></i> 1. ¿Cómo cargar pacientes?
+                            </button>
+                        </h2>
+                        <div id="help1" class="accordion-collapse collapse" data-bs-parent="#accordionHelp">
+                            <div class="accordion-body text-secondary">
+                                <ol>
+                                    <li>Ve a la opción <strong>Cargar</strong> en el menú lateral.</li>
+                                    <li>Haz clic en "Seleccionar Archivo" y busca tu Excel (de Ana, Andrea o SIISA).</li>
+                                    <li>Presiona <strong>Procesar Archivo</strong>.</li>
+                                </ol>
+                                <div class="alert alert-info small mt-2">
+                                    <i class="fas fa-info-circle"></i> <strong>Nota:</strong> El sistema detecta automáticamente si el paciente ya existe y solo actualiza sus datos nuevos.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TEMA 2: Gestión Masiva -->
+                    <div class="accordion-item border-0 shadow-sm mb-2">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold text-success" type="button" data-bs-toggle="collapse" data-bs-target="#help2">
+                                <i class="bx bxs-check-square me-2"></i> 2. Gestión Masiva (Ahorrar tiempo)
+                            </button>
+                        </h2>
+                        <div id="help2" class="accordion-collapse collapse" data-bs-parent="#accordionHelp">
+                            <div class="accordion-body text-secondary">
+                                <p>Para editar varios pacientes al tiempo:</p>
+                                <ol>
+                                    <li>En el <strong>Tablero</strong>, marca las casillas ☑️ a la izquierda de los pacientes.</li>
+                                    <li>Aparecerá un botón flotante azul abajo que dice <strong>"Gestionar (X) Pacientes"</strong>.</li>
+                                    <li>Al hacer clic, podrás cambiar el Estado, Asignar Cita o Escribir una nota para todos a la vez.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TEMA 3: Alertas y Errores -->
+                    <div class="accordion-item border-0 shadow-sm mb-2">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold text-danger" type="button" data-bs-toggle="collapse" data-bs-target="#help3">
+                                <i class="bx bxs-bell-ring me-2"></i> 3. ¿Qué significan las Alertas?
+                            </button>
+                        </h2>
+                        <div id="help3" class="accordion-collapse collapse" data-bs-parent="#accordionHelp">
+                            <div class="accordion-body text-secondary">
+                                <p>Si ves una campana roja arriba a la derecha:</p>
+                                <ul>
+                                    <li><strong>Casos Críticos:</strong> Pacientes que llevan más de 30 días esperando gestión. ¡Prioridad Alta!</li>
+                                    <li><strong>Errores de Datos:</strong> El sistema detectó fechas ilógicas (ej: Cita antes de la solicitud). Debes entrar a corregirlos.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TEMA 4: Filtros -->
+                    <div class="accordion-item border-0 shadow-sm">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#help4">
+                                <i class="bx bxs-filter-alt me-2"></i> 4. Buscar y Filtrar
+                            </button>
+                        </h2>
+                        <div id="help4" class="accordion-collapse collapse" data-bs-parent="#accordionHelp">
+                            <div class="accordion-body text-secondary">
+                                <ul>
+                                    <li>Usa el <strong>Buscador</strong> para encontrar por Cédula o Nombre.</li>
+                                    <li>Usa los filtros de arriba para ver solo una EPS (ej: ASMET) o un Procedimiento (ej: QUIMIOTERAPIA).</li>
+                                    <li>El botón verde <strong>Exportar</strong> descarga un Excel con lo que tengas filtrado en pantalla.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <small class="text-muted me-auto">Soporte Técnico: Contactar al Administrador</small>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Entendido</button>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>
