@@ -1,10 +1,11 @@
-from django.shortcuts import render
-from rest_framework import viewsets
 from django.shortcuts import render, get_object_or_404
 from django.core.paginator import Paginator
 from django.db.models import Q
-from .models import Patient
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse  # <--- ESTA FUE LA LÍNEA QUE FALTÓ
+from django.utils import timezone
+from vidanova.utils import render_to_pdf
+from .models import Patient
 
 @login_required
 def patient_directory(request):
@@ -35,6 +36,7 @@ def patient_directory(request):
         'q_search': q_search
     })
 
+@login_required
 def patient_profile(request, pk):
     """
     Perfil 360 del Paciente: Datos + Historial de Seguimientos.
@@ -42,10 +44,35 @@ def patient_profile(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
     
     # Traemos el historial usando el related_name='seguimientos'
-    # Asegúrate de que en followups/models.py el ForeignKey tenga related_name='seguimientos'
     history = patient.seguimientos.all().order_by('-fecha_solicitud_cita')
 
     return render(request, 'patient_profile.html', {
         'patient': patient,
         'history': history
     })
+
+# --- GENERACIÓN DE PDF ---
+@login_required
+def generar_pdf_paciente(request, pk):
+    """
+    Genera un reporte PDF completo del historial del paciente.
+    """
+    patient = get_object_or_404(Patient, pk=pk)
+    history = patient.seguimientos.all().order_by('-fecha_solicitud_cita')
+    
+    data = {
+        'patient': patient,
+        'history': history,
+        'fecha_impresion': timezone.now(),
+        'usuario': request.user.username.title(),
+    }
+    
+    pdf = render_to_pdf('patient_pdf.html', data)
+    
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = f"Historia_{patient.numero_documento}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+    
+    return HttpResponse("Error generando PDF", status=404)

@@ -1,0 +1,113 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+    <title>Reporte de Paciente</title>
+    <style type="text/css">
+        body { font-family: Helvetica, sans-serif; font-size: 12px; color: #333; }
+        
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
+        .header h1 { color: #2563eb; margin: 0; }
+        .header p { margin: 2px; color: #666; }
+        
+        .section-title { 
+            background-color: #f1f5f9; 
+            padding: 5px; 
+            font-weight: bold; 
+            border-left: 5px solid #2563eb; 
+            margin-top: 20px; margin-bottom: 10px;
+        }
+        
+        .info-table { width: 100%; margin-bottom: 10px; }
+        .info-table td { padding: 4px; }
+        .label { font-weight: bold; color: #555; width: 120px; }
+        
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .history-table th { background-color: #2563eb; color: white; padding: 6px; text-align: left; font-size: 10px; }
+        .history-table td { border-bottom: 1px solid #ddd; padding: 6px; font-size: 10px; vertical-align: top; }
+        .row-even { background-color: #f9f9f9; }
+        
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #aaa; }
+        
+        .badge { color: white; padding: 2px 5px; border-radius: 3px; font-size: 9px; }
+        .bg-success { background-color: #10b981; }
+        .bg-warning { background-color: #f59e0b; color: black; }
+        .bg-secondary { background-color: #64748b; }
+    </style>
+</head>
+<body>
+    
+    <div class="header">
+        <h1>VIDANOVA</h1>
+        <p>Sistema Integral de Gestión Oncológica</p>
+        <p>Reporte de Historia Administrativa</p>
+    </div>
+
+    <!-- DATOS DEL PACIENTE -->
+    <div class="section-title">INFORMACIÓN DEL PACIENTE</div>
+    <table class="info-table">
+        <tr>
+            <td class="label">Paciente:</td>
+            <td><strong>{{ patient.nombre_completo }}</strong></td>
+            <td class="label">Identificación:</td>
+            <td>{{ patient.tipo_documento }} {{ patient.numero_documento }}</td>
+        </tr>
+        <tr>
+            <td class="label">Edad / Género:</td>
+            <td>{{ patient.edad|default:"-" }} años / {{ patient.genero|default:"-" }}</td>
+            <td class="label">Ubicación:</td>
+            <td>{{ patient.ciudad_residencia }} - {{ patient.departamento_residencia }}</td>
+        </tr>
+    </table>
+
+    <!-- HISTORIAL -->
+    <div class="section-title">HISTORIAL DE TRÁMITES Y GESTIÓN</div>
+    
+    <table class="history-table">
+        <thead>
+            <tr>
+                <th width="15%">Fechas</th>
+                <th width="20%">Procedimiento</th>
+                <th width="15%">EPS</th>
+                <th width="15%">Estado</th>
+                <th width="35%">Observaciones y Gestión</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in history %}
+            <tr class="{% cycle 'row-even' 'row-odd' %}">
+                <td>
+                    <strong>Sol:</strong> {{ f.fecha_solicitud_cita|date:"d/m/Y" }}<br>
+                    {% if f.fecha_cita %}
+                    <span style="color:#2563eb">Cita: {{ f.fecha_cita|date:"d/m/Y" }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <b>{{ f.tipo_procedimiento }}</b><br>
+                    <span style="color:#666">{{ f.cups|default:"" }}</span>
+                </td>
+                <td>{{ f.entidad_aseguradora }}</td>
+                <td>
+                    {% if "REALIZADO" in f.estado_solicitud|upper %}
+                        <span class="badge bg-success">REALIZADO</span>
+                    {% elif "PENDIENTE" in f.estado_solicitud|upper %}
+                        <span class="badge bg-warning">PENDIENTE</span>
+                    {% else %}
+                        <span class="badge bg-secondary">{{ f.estado_solicitud }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if f.barrera %}
+                    <div style="color:red; font-weight:bold; margin-bottom:2px;">⚠️ {{ f.barrera }}</div>
+                    {% endif %}
+                    {{ f.observaciones|linebreaksbr|default:"-" }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Generado por: {{ usuario }} | Fecha: {{ fecha_impresion|date:"d/m/Y H:i" }} | Vidanova System
+    </div>
+</body>
+</html>

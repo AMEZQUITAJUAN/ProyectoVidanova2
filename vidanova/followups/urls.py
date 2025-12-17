@@ -25,4 +25,7 @@ urlpatterns = [
     path('sembrar-cups/', views.sembrar_cups, name='sembrar_cups'),
     path('calendario/', views.calendar_view, name='calendar_view'),
     path('api/eventos/', views.calendar_api, name='calendar_api'),
+    path('centro-alertas/', views.centro_alertas, name='centro_alertas'),
+    path('configuracion/cups/', views.configuracion_cups, name='configuracion_cups'),
+    path('sistema/backup/', views.descargar_backup, name='descargar_backup'),
 ]

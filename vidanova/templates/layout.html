@@ -90,6 +90,25 @@
                 </li>
                 {% endif %}
 
+                <!-- Item Configuración CUPS -->
+                {% if request.user|has_group:"Gerencia" or user.is_superuser %}
+                <li>
+                    <a href="{% url 'configuracion_cups' %}" class="{% if 'configuracion' in request.path %}active{% endif %}">
+                        <i class='bx bxs-purchase-tag-alt'></i>
+                        <span class="links_name">Clasificar CUPS</span>
+                    </a>
+                    <span class="tooltip">Clasificar</span>
+                </li>
+                {% endif %}
+
+                <li>
+                    <a href="{% url 'descargar_backup' %}" class="text-warning"> <!-- Color diferente para resaltar -->
+                        <i class='bx bxs-save'></i>
+                        <span class="links_name">Descargar Backup</span>
+                    </a>
+                    <span class="tooltip">Backup</span>
+                </li>
+
                 <!-- BASE DE DATOS: Solo Superusuario -->
                 {% if user.is_superuser %}
                 <li>
@@ -164,7 +183,7 @@
                         <!-- Item: Vencidos -->
                         {% if alert_overdue > 0 %}
                         <li>
-                            <a class="dropdown-item d-flex align-items-center py-2" href="{% url 'followup_dashboard' %}?q=PENDIENTE">
+                            <a class="dropdown-item d-flex align-items-center py-2" href="{% url 'centro_alertas' %}">
                                 <div class="bg-danger bg-opacity-10 text-danger rounded p-2 me-3">
                                     <i class='bx bx-time-five fs-4'></i>
                                 </div>
@@ -182,7 +201,7 @@
                             <hr class="dropdown-divider">
                         </li>
                         <li>
-                            <a class="dropdown-item d-flex align-items-center py-2" href="{% url 'followup_dashboard' %}">
+                            <a class="dropdown-item d-flex align-items-center py-2" href="{% url 'centro_alertas' %}">
                                 <div class="bg-warning bg-opacity-10 text-warning rounded p-2 me-3">
                                     <i class='bx bx-error fs-4'></i>
                                 </div>

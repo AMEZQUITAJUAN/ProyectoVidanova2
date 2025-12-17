@@ -112,10 +112,12 @@ body {
     margin-bottom: 1rem;
 }
 
-.logo i {
-    font-size: 2.5rem;
-    color: var(--white);
-    animation: pulse 2s ease-in-out infinite;
+.logo-img {
+    height: 60px; /* Ajusta este número según el tamaño de tu logo */
+    width: auto;  /* Mantiene la proporción */
+    animation: pulse 2s ease-in-out infinite; /* Mantenemos tu animación cool */
+    margin-right: 10px; /* Espacio entre logo y texto */
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); /* Sombra suave para que resalte */
 }
 
 @keyframes pulse {

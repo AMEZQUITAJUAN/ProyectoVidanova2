@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import shutil
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.files.storage import FileSystemStorage
 from django.core.paginator import Paginator
@@ -11,6 +12,9 @@ from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from django.http import JsonResponse
+from datetime import timedelta
+from django.conf import settings
+from django.http import FileResponse
 
 from .models import FollowUp, MasterCUP
 from .forms import FollowUpForm, UploadFileForm
@@ -482,3 +486,100 @@ def calendar_api(request):
         })
     
     return JsonResponse(eventos, safe=False)
+
+# --- 8. CENTRO DE ALERTAS ---
+@login_required
+def centro_alertas(request):
+    """
+    Muestra el detalle de las alertas para corrección inmediata.
+    """
+    # A. ALERTAS DE INCONSISTENCIA (Cita antes de Solicitud)
+    inconsistencias = FollowUp.objects.filter(
+        fecha_cita__lt=F('fecha_solicitud_cita')
+    ).select_related('patient')
+
+    # B. ALERTAS DE VENCIMIENTO (> 30 Días sin gestión)
+    fecha_limite = timezone.now().date() - timedelta(days=30)
+    estados_pendientes = ['PENDIENTE', 'EN_GESTION', 'POR_GESTIONAR', 'NO_AUTORIZADO']
+    
+    vencidos = FollowUp.objects.filter(
+        estado_solicitud__in=estados_pendientes,
+        fecha_solicitud_cita__lt=fecha_limite,
+        fecha_cita__isnull=True
+    ).select_related('patient').order_by('fecha_solicitud_cita')
+
+    context = {
+        'inconsistencias': inconsistencias,
+        'vencidos': vencidos,
+        'total_alertas': inconsistencias.count() + vencidos.count()
+    }
+    return render(request, 'alerts_center.html', context)
+
+# --- 9. CONFIGURACIÓN Y MAESTROS ---
+@login_required
+def configuracion_cups(request):
+    """
+    Permite a las jefas clasificar los códigos nuevos que el sistema detectó.
+    """
+    # Si enviaron un formulario para clasificar
+    if request.method == 'POST':
+        cup_id = request.POST.get('cup_id')
+        nuevo_grupo = request.POST.get('new_group')
+        
+        if cup_id and nuevo_grupo:
+            # Actualizamos el maestro
+            MasterCUP.objects.filter(id=cup_id).update(grupo=nuevo_grupo)
+            messages.success(request, "✅ Código clasificado correctamente.")
+            return redirect('configuracion_cups')
+
+    # Listar solo los pendientes
+    pendientes = MasterCUP.objects.filter(grupo='PENDIENTE').order_by('codigo')
+    
+    # Opciones de categorías (Las mismas del modelo)
+    categorias = [
+        ('CONSULTA', 'Consulta Especializada'),
+        ('QUIMIOTERAPIA', 'Quimioterapia'),
+        ('RADIOTERAPIA', 'Radioterapia'),
+        ('CIRUGIA', 'Cirugía'),
+        ('IMAGEN', 'Imagenología'),
+        ('LABORATORIO', 'Laboratorio Clínico'),
+        ('DOLOR', 'Clínica del Dolor'),
+        ('ESTANCIA', 'Estancia / Hospitalización'),
+        ('DIAGNOSTICO', 'Procedimiento Diagnóstico'),
+        ('COMPLEMENTARIO', 'Servicio Complementario'),
+        ('ONCOLOGIA', 'Oncología General'),
+        ('OTROS', 'Otros'),
+    ]
+
+    return render(request, 'config_cups.html', {
+        'pendientes': pendientes,
+        'categorias': categorias,
+        'total_pendientes': pendientes.count()
+    })
+
+# --- 10. UTILIDADES DE SISTEMA (BACKUP) ---
+@login_required
+def descargar_backup(request):
+    """
+    Genera y descarga una copia de seguridad de la base de datos SQLite.
+    Solo para superusuarios.
+    """
+    if not request.user.is_superuser:
+        messages.error(request, "No tienes permisos para realizar copias de seguridad.")
+        return redirect('followup_dashboard')
+
+    # Ruta del archivo original
+    db_path = settings.DATABASES['default']['NAME']
+    
+    # Nombre del archivo para descargar
+    timestamp = timezone.now().strftime("%Y-%m-%d_%H%M")
+    filename = f"backup_vidanova_{timestamp}.sqlite3"
+
+    # Abrimos el archivo en modo binario y lo enviamos
+    try:
+        response = FileResponse(open(db_path, 'rb'))
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception as e:
+        messages.error(request, f"Error generando backup: {str(e)}")
+        return redirect('followup_dashboard')
