@@ -131,23 +131,30 @@
             </ul> <!-- Aquí cerraba tu lista original -->
         </div>
 
-        <!-- FOOTER DE USUARIO RESTITUIDO -->
         <!-- FOOTER INTEGRADO (Usuario + Logout) -->
         <div class="profile-content">
             <div class="profile-details">
-                <!-- Icono de Usuario -->
-                <i class='bx bxs-user-circle'></i>
+                <!-- Avatar -->
+                <div class="profile-img-box">
+                    <i class='bx bxs-user-rectangle'></i>
+                </div>
                 
+                <!-- Info y Acciones -->
                 <div class="name_job">
-                    <!-- 1. Nombre Real del Usuario -->
-                    <div class="name">{{ user.username|default:"Usuario"|title }}</div>
                     
-                    <!-- 2. Botón de Cerrar Sesión -->
-                    <!-- Usamos un formulario POST por seguridad de Django -->
-                    <form action="{% url 'logout' %}" method="post" style="margin: 0; padding: 0;">
+                    <!-- Fila 1: Nombre + Llave -->
+                    <div class="user-row">
+                        <div class="name">{{ user.username|default:"Usuario"|title|truncatechars:10 }}</div>
+                        <a href="{% url 'password_change' %}" class="key-btn" title="Cambiar Contraseña">
+                            <i class='bx bxs-key'></i>
+                        </a>
+                    </div>
+                    
+                    <!-- Fila 2: Botón Salir -->
+                    <form action="{% url 'logout' %}" method="post">
                         {% csrf_token %}
-                        <button type="submit" class="job" style="background: none; border: none; padding: 0; color: #94a3b8; cursor: pointer; text-align: left; width: 100%;">
-                            <i class='bx bx-log-out' style="font-size: 12px; min-width: auto; height: auto; line-height: normal;"></i> Cerrar Sesión
+                        <button type="submit" class="logout-btn">
+                            <i class='bx bx-log-out'></i> Cerrar Sesión
                         </button>
                     </form>
                 </div>

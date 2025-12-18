@@ -14,6 +14,16 @@ urlpatterns = [
     ), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 
+    # CAMBIO DE CONTRASEÑA
+    path('cambiar-clave/', auth_views.PasswordChangeView.as_view(
+        template_name='password_change.html',
+        success_url='/cambiar-clave/listo/'
+    ), name='password_change'),
+    
+    path('cambiar-clave/listo/', auth_views.PasswordChangeDoneView.as_view(
+        template_name='password_change_done.html'
+    ), name='password_change_done'),
+
     # Apps
     path('pacientes/', include('patients.urls')),
     path('seguimiento/', include('followups.urls')),

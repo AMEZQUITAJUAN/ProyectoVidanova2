@@ -181,50 +181,110 @@ body {
     display: block; opacity: 1; transition-delay: 0.2s;
 }
 
-/* --- FOOTER DE USUARIO (RESTITUIDO) --- */
+/* =========================================
+   FOOTER DE USUARIO (REDISEÑADO)
+   ========================================= */
 .profile-content {
-    background: #1d283c; /* Un poco más claro que el fondo */
-    padding: 10px 0;
+    background: #111827; /* Mismo tono oscuro del sidebar */
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding: 10px 14px;
     transition: all 0.4s ease;
     overflow: hidden;
+    /* Aseguramos que se quede al fondo */
+    margin-top: auto; 
 }
+
 .profile-details {
     display: flex;
     align-items: center;
     flex-wrap: nowrap;
-    padding-left: 0; /* Ajuste inicial */
-    height: 50px;
-    min-width: 260px; /* Asegura que el contenido no se rompa */
 }
-.profile-details i {
-    height: 50px;
-    min-width: 78px; /* Centrado cuando está colapsado */
+
+/* 1. CAJA DEL ICONO (AVATAR) */
+.profile-img-box i {
+    height: 45px;
+    width: 45px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    line-height: 45px;
     text-align: center;
-    line-height: 50px;
-    font-size: 30px;
+    font-size: 24px;
     color: #fff;
+    margin-right: 15px; /* Separación con el texto */
+    min-width: 45px; /* Evita que se aplaste */
 }
+
+/* 2. CONTENEDOR DE TEXTO (OCULTO AL INICIO) */
 .name_job {
-    margin-left: 0px;
-    opacity: 0;
-    transition: opacity 0.4s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    opacity: 0; 
+    transition: opacity 0.2s;
+    white-space: nowrap;
+    pointer-events: none; /* No clicable si está oculto */
 }
+
+/* Mostrar solo al pasar el mouse sobre la barra */
 .sidebar:hover .name_job {
     opacity: 1;
+    pointer-events: auto;
 }
+
+/* 3. FILA SUPERIOR: NOMBRE + LLAVE */
+.user-row {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Espacio entre nombre y llave */
+    margin-bottom: 2px;
+}
+
 .name {
     font-size: 15px;
     font-weight: 600;
     color: #fff;
-    white-space: nowrap;
-}
-.job {
-    font-size: 12px;
-    color: #94a3b8;
-    white-space: nowrap;
 }
 
-/* --- CONTENIDO PRINCIPAL --- */
+.key-btn {
+    color: #64748b; /* Gris discreto */
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    transition: 0.2s;
+}
+
+.key-btn:hover {
+    color: #f59e0b; /* Amarillo brillante al tocar */
+    transform: scale(1.1);
+}
+
+/* 4. FILA INFERIOR: BOTÓN SALIR */
+.logout-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #94a3b8; /* Gris claro */
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: 0.2s;
+    text-align: left;
+}
+
+.logout-btn:hover {
+    color: #ef4444; /* Rojo al tocar */
+}
+
+.logout-btn i {
+    font-size: 14px;
+}
+
+/* =========================================
+   CONTENIDO PRINCIPAL
+   ========================================= */
 .main-content {
     margin-left: var(--sidebar-width-collapsed);
     width: calc(100% - var(--sidebar-width-collapsed));
@@ -232,23 +292,16 @@ body {
     transition: var(--tran-03);
 }
 
-/* --- BOTÓN FLOTANTE DE TEMA --- */
+/* =========================================
+   BOTÓN FLOTANTE TEMA (OPCIONAL/OCULTO)
+   ========================================= */
 .theme-toggle {
-    position: fixed;
-    bottom: 30px; right: 30px;
-    width: 50px; height: 50px;
-    background: var(--active-color);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    color: white; font-size: 24px;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-    z-index: 9999;
-    transition: transform 0.2s;
+    display: none; /* Lo ocultamos porque no lo estamos usando por ahora */
 }
-.theme-toggle:hover { transform: scale(1.1); }
 
-/* --- ADAPTACIONES MODO OSCURO --- */
+/* =========================================
+   ADAPTACIONES MODO OSCURO (GLOBAL)
+   ========================================= */
 [data-theme="dark"] .card {
     background-color: var(--card-bg) !important;
     color: var(--text-color) !important;
