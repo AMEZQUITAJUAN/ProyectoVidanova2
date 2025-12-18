@@ -67,21 +67,52 @@ def sembrar_cups(request):
 # --- 1. TABLERO PRINCIPAL (DASHBOARD) ---
 @login_required
 def followup_dashboard(request):
+    """
+    Vista principal con FILTROS PERSISTENTES (Memoria de Sesión).
+    """
+    # 1. LÓGICA DE MEMORIA (PERSISTENCIA)
+    # Recuperamos filtros guardados o usamos diccionario vacío
+    filtros_guardados = request.session.get('filtros_dashboard', {})
+    
+    # Determinamos qué filtros usar:
+    if request.GET:
+        # A. Si el usuario está enviando datos nuevos (hizo clic en Filtrar o Paginación)
+        if 'limpiar_filtros' in request.GET:
+            # Caso especial: Botón Limpiar
+            request.session['filtros_dashboard'] = {}
+            return redirect('followup_dashboard')
+        else:
+            # Caso normal: Guardamos la nueva selección en sesión
+            # Convertimos QueryDict a dict normal para poder guardarlo
+            filtros_guardados = {k: v for k, v in request.GET.items() if v}
+            request.session['filtros_dashboard'] = filtros_guardados
+    else:
+        # B. Si no hay GET (Viene de "Atrás" o menú), usamos la memoria
+        pass # filtros_guardados ya tiene lo de la sesión
+
+    # Usamos 'params' en lugar de 'request.GET' de aquí en adelante
+    params = filtros_guardados
+
+    # 2. Queryset Base
     queryset = FollowUp.objects.select_related('patient').all().order_by('-fecha_solicitud_cita', '-id')
 
-    date_from = request.GET.get('date_from')
-    date_to = request.GET.get('date_to')
-    status = request.GET.get('status')
-    procedure = request.GET.get('procedure')
-    eps = request.GET.get('eps')
-    barrier = request.GET.get('barrier')
-    agrupador = request.GET.get('agrupador')
-    q_search = request.GET.get('q')
+    # 3. Captura de Filtros (Desde 'params', no request.GET)
+    date_from = params.get('date_from')
+    date_to = params.get('date_to')
+    status = params.get('status')
+    procedure = params.get('procedure')
+    eps = params.get('eps')
+    barrier = params.get('barrier')
+    agrupador = params.get('agrupador')
+    q_search = params.get('q')
 
+    # 4. Aplicación de Filtros
     if date_from: queryset = queryset.filter(fecha_solicitud_cita__gte=date_from)
     if date_to: queryset = queryset.filter(fecha_solicitud_cita__lte=date_to)
+    
     if status: queryset = queryset.filter(estado_solicitud__icontains=status)
     if procedure: queryset = queryset.filter(tipo_procedimiento__icontains=procedure)
+    
     if eps: queryset = queryset.filter(entidad_aseguradora=eps)
     if barrier: queryset = queryset.filter(barrera=barrier)
     if agrupador: queryset = queryset.filter(agrupador=agrupador)
@@ -95,17 +126,15 @@ def followup_dashboard(request):
             Q(cups__icontains=q_search)
         )
 
-    # --- AQUÍ ESTÁN LAS OPCIONES DINÁMICAS ---
+    # 5. Listas para Dropdowns
     eps_options = FollowUp.objects.exclude(entidad_aseguradora__isnull=True).exclude(entidad_aseguradora='').values_list('entidad_aseguradora', flat=True).distinct().order_by('entidad_aseguradora')
     barrier_options = FollowUp.objects.exclude(barrera__isnull=True).exclude(barrera='').values_list('barrera', flat=True).distinct().order_by('barrera')
     agrupador_options = FollowUp.objects.exclude(agrupador__isnull=True).exclude(agrupador='').values_list('agrupador', flat=True).distinct().order_by('agrupador')
-    
-    # NUEVO: Lista dinámica de Procedimientos (Oncología, Consulta, etc.)
-    procedure_options = FollowUp.objects.exclude(tipo_procedimiento__isnull=True).exclude(tipo_procedimiento='').values_list('tipo_procedimiento', flat=True).distinct().order_by('tipo_procedimiento')
 
-    # ... Resto de KPIs y Estadísticas (Igual que antes) ...
+    # 6. Estadísticas (Sobre el queryset ya filtrado)
     grand_total = FollowUp.objects.count()
     total_registros_filtrados = queryset.count()
+    
     pct_global = 0
     if grand_total > 0:
         pct_global = round((total_registros_filtrados / grand_total) * 100, 1)
@@ -133,23 +162,23 @@ def followup_dashboard(request):
         'promedio_dias': promedio
     }
 
-    per_page = request.GET.get('per_page', 25)
+    # 7. Paginación
+    per_page = params.get('per_page', 25) # También recordamos cuántas filas le gusta ver
     try: per_page = int(per_page)
-    except ValueError: per_page = 25
+    except: per_page = 25
 
     paginator = Paginator(queryset, per_page)
-    page_number = request.GET.get('page')
+    page_number = request.GET.get('page') # La página sí debe ser fresca siempre
     page_obj = paginator.get_page(page_number)
 
     context = {
         'per_page': per_page, 
         'page_obj': page_obj,
-        'filtros': request.GET,
+        'filtros': params, # <--- ENVIAMOS LOS FILTROS DE MEMORIA AL HTML
         'stats': stats,
         'eps_options': eps_options,       
         'barrier_options': barrier_options,
         'agrupador_options': agrupador_options,
-        'procedure_options': procedure_options, # <--- Enviamos la nueva lista
         'estado_procedimiento_labels': kpi_status['labels'],
         'estado_procedimiento_values': kpi_status['values'],
         'oportunidad_procedimiento_labels': kpi_procedure['procedimiento_labels'],

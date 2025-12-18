@@ -162,10 +162,13 @@
 
                         <!-- Botones de Acción -->
                         <div class="row mt-4">
+                           
                             <div class="col-12 d-flex justify-content-end gap-2">
-                                <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary">
+                                <!-- Botón Limpiar: Envía la señal 'limpiar_filtros' -->
+                                <a href="?limpiar_filtros=true" class="btn btn-outline-secondary">
                                     <i class="fas fa-undo"></i> Limpiar Filtros
                                 </a>
+                                
                                 <button class="btn btn-primary px-4 shadow-sm" type="submit">
                                     <i class="fas fa-filter"></i> Aplicar Filtros
                                 </button>
