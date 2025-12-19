@@ -19,22 +19,21 @@ urlpatterns = [
         template_name='password_change.html',
         success_url='/cambiar-clave/listo/'
     ), name='password_change'),
-    
     path('cambiar-clave/listo/', auth_views.PasswordChangeDoneView.as_view(
         template_name='password_change_done.html'
     ), name='password_change_done'),
 
-    # Apps
+    # APLICACIONES PRINCIPALES
     path('pacientes/', include('patients.urls')),
     path('seguimiento/', include('followups.urls')),
     
-    # APIs
-    path('api/tratamientos/', include('treatments.urls')),
+    # --- AQUÍ ESTABA EL ERROR: quitamos el 'api/' ---
+    path('tratamientos/', include('treatments.urls')), 
+    
+    # Autorizaciones (si lo usas, si no, puedes borrarlo)
     path('api/autorizaciones/', include('authorizations.urls')),
 ]
 
-# --- FUERZA BRUTA PARA SERVIR ESTILOS EN WINDOWS/RED ---
-# Esto asegura que login.css y sidebar.css carguen siempre
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

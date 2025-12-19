@@ -1,7 +1,6 @@
-from rest_framework import routers
-from .views import TreatmentViewSet
+from django.urls import path
+from . import views
 
-router = routers.DefaultRouter()
-router.register(r'tratamientos', TreatmentViewSet)
-
-urlpatterns = router.urls
+urlpatterns = [
+    path('editar-ciclo/<int:pk>/', views.editar_ciclo, name='editar_ciclo'),
+]

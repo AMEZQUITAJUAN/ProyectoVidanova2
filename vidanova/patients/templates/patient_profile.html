@@ -45,6 +45,89 @@
             </div>
         </div>
 
+        <!-- === SECCIÓN DE TRATAMIENTOS CLÍNICOS (NUEVO) === -->
+        <div class="col-md-12">
+            <h5 class="fw-bold text-dark mb-3"><i class="fas fa-procedures me-2"></i>Tratamientos Activos</h5>
+            
+            {% for t in treatments %}
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <div>
+                        <span class="badge bg-primary me-2">{{ t.get_tipo_display }}</span>
+                        <strong class="fs-5 text-dark">{{ t.nombre_esquema }}</strong>
+                        <div class="text-muted small mt-1">
+                            Inicio: {{ t.fecha_inicio|date:"d/m/Y" }} | Frecuencia: Cada {{ t.frecuencia_dias }} días
+                        </div>
+                    </div>
+                    <div class="text-end" style="width: 200px;">
+                        <div class="small fw-bold text-muted mb-1">Progreso: {{ t.progreso }}%</div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ t.progreso }}%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Ciclo</th>
+                                    <th>Fecha Programada (Teórica)</th>
+                                    <th>Estado</th>
+                                    <th>Notas</th>
+                                    <!-- COLUMNA NUEVA -->
+                                    <th class="text-end pe-4">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in t.ciclos.all %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">#{{ c.numero }}</td>
+                                    <td>
+                                        <i class="far fa-calendar-alt text-muted me-1"></i>
+                                        {{ c.fecha_programada|date:"d/m/Y" }}
+                                    </td>
+                                    <td>
+                                        {% if c.estado == 'REALIZADO' %}
+                                            <span class="badge bg-success">REALIZADO</span>
+                                        {% elif c.estado == 'AGENDADO' %}
+                                            <span class="badge bg-primary">CITA ASIGNADA</span>
+                                        {% elif c.estado == 'CANCELADO' %}
+                                            <span class="badge bg-danger">CANCELADO</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary bg-opacity-50 text-dark border">PROGRAMADO</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-muted small fst-italic text-truncate" style="max-width: 150px;">
+                                        {{ c.notas|default:"-" }}
+                                    </td>
+                                    
+                                    <!-- BOTÓN DE EDICIÓN CONECTADO AL MODAL -->
+                                    <td class="text-end pe-4">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-primary border-0 hover-shadow" 
+                                                title="Gestionar Ciclo"
+                                                onclick="abrirModalCiclo('{{ c.id }}', '{{ c.estado }}', '{{ c.fecha_real|date:'Y-m-d' }}', '{{ c.notas|escapejs }}')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="alert alert-light border text-center text-muted mb-4">
+                <i class="fas fa-notes-medical fs-4 mb-2"></i><br>
+                Este paciente no tiene tratamientos clínicos registrados.
+            </div>
+            {% endfor %}
+        </div>
+        <!-- ==================================================== -->
+
         <!-- Historial de Seguimientos -->
         <div class="col-md-12">
             <h5 class="fw-bold text-primary mb-3"><i class="fas fa-history me-2"></i>Historial de Atenciones</h5>
@@ -100,4 +183,66 @@
 
     </div>
 </div>
+
+<!-- === MODAL DE EDICIÓN DE CICLO === -->
+<div class="modal fade" id="modalCiclo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-syringe me-2"></i>Gestionar Ciclo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <form id="formCiclo" method="POST"> <!-- El action se pone con JS -->
+                {% csrf_token %}
+                <div class="modal-body bg-light">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Estado del Ciclo</label>
+                        <select name="estado" id="id_estado" class="form-select">
+                            <option value="PROGRAMADO">Programado (Teórico)</option>
+                            <option value="AGENDADO">Cita Asignada</option>
+                            <option value="REALIZADO">✅ REALIZADO</option>
+                            <option value="CANCELADO">Cancelado</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Fecha Real (Si ya se hizo)</label>
+                        <input type="date" name="fecha_real" id="id_fecha_real" class="form-control">
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label fw-bold text-muted">Notas Clínicas / Reacciones</label>
+                        <textarea name="notas" id="id_notas" class="form-control" rows="3"></textarea>
+                    </div>
+
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Función para abrir el modal y rellenar los datos
+    function abrirModalCiclo(id, estado, fecha, notas) {
+        // 1. Configurar la URL del formulario dinámicamente
+        const form = document.getElementById('formCiclo');
+        form.action = "/tratamientos/editar-ciclo/" + id + "/";
+
+        // 2. Rellenar los campos con los datos actuales
+        document.getElementById('id_estado').value = estado;
+        document.getElementById('id_fecha_real').value = fecha !== 'None' ? fecha : '';
+        document.getElementById('id_notas').value = notas !== 'None' ? notas : '';
+
+        // 3. Mostrar el modal
+        const modal = new bootstrap.Modal(document.getElementById('modalCiclo'));
+        modal.show();
+    }
+</script>
+
 {% endblock %}

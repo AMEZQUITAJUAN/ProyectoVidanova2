@@ -36,19 +36,26 @@ def patient_directory(request):
         'q_search': q_search
     })
 
+# --- EN PATIENTS/VIEWS.PY ---
+
 @login_required
 def patient_profile(request, pk):
     """
-    Perfil 360 del Paciente: Datos + Historial de Seguimientos.
+    Perfil 360: Datos + Historial Administrativo + Tratamientos Clínicos.
     """
     patient = get_object_or_404(Patient, pk=pk)
     
-    # Traemos el historial usando el related_name='seguimientos'
+    # 1. Historial Administrativo (Lo que ya tenías)
     history = patient.seguimientos.all().order_by('-fecha_solicitud_cita')
+
+    # 2. Tratamientos Clínicos (LO NUEVO)
+    # Usamos 'prefetch_related' para traer los ciclos eficientemente y no hacer mil consultas
+    treatments = patient.tratamientos.prefetch_related('ciclos').all().order_by('-fecha_inicio')
 
     return render(request, 'patient_profile.html', {
         'patient': patient,
-        'history': history
+        'history': history,
+        'treatments': treatments # <--- Enviamos esto a la plantilla
     })
 
 # --- GENERACIÓN DE PDF ---
