@@ -114,3 +114,27 @@ class FollowUpForm(forms.ModelForm):
         self.fields['observaciones'].widget.attrs.update({'readonly': 'readonly', 'class': 'form-control bg-light text-muted'})
         self.fields['cups'].widget.attrs.update({'class': 'form-control'})
         self.fields['entidad_aseguradora'].widget.attrs.update({'class': 'form-control'})
+
+        # ... dentro de class FollowUpForm ...
+
+    def clean(self):
+        """
+        Validaciones personalizadas para evitar datos basura.
+        """
+        cleaned_data = super().clean()
+        
+        estado = cleaned_data.get('estado_solicitud')
+        f_cita = cleaned_data.get('fecha_cita')
+        f_solicitud = cleaned_data.get('fecha_solicitud_cita')
+
+        # REGLA 1: No se puede marcar REALIZADO o AGENDADO sin fecha de cita
+        if estado in ['REALIZADO', 'AGENDADO'] and not f_cita:
+            # Marcamos el error en el campo específico
+            self.add_error('fecha_cita', "Para marcar como Agendado o Realizado, debes ingresar la Fecha de Cita.")
+
+        # REGLA 2: La Cita no puede ser antes de la Solicitud (Viaje en el tiempo)
+        if f_cita and f_solicitud:
+            if f_cita < f_solicitud:
+                self.add_error('fecha_cita', f"Error lógico: La cita ({f_cita}) no puede ser anterior a la solicitud ({f_solicitud}).")
+
+        return cleaned_data

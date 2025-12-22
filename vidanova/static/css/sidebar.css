@@ -1,307 +1,194 @@
-/* url(sidebar.css) */
-/* --- VARIABLES DE TEMA (CLARO / OSCURO) --- */
+/* =========================================
+   1. VARIABLES Y CONFIGURACIÓN BASE
+   ========================================= */
 :root {
-    /* Colores Base (Modo Claro) */
     --body-bg: #f1f5f9;
-    --text-color: #1e293b;
-    --card-bg: #ffffff;
-    --border-color: #e2e8f0;
-    
-    /* Sidebar */
-    --sidebar-bg: #111827; /* Casi negro */
+    --main-text: #1e293b;
+    --sidebar-bg: #111827; 
+    --sidebar-text: #fff;
     --sidebar-width-collapsed: 78px;
     --sidebar-width-expanded: 260px;
     --active-color: #3b82f6;
-
-    /* Transiciones */
     --tran-03: all 0.3s ease;
+    --tran-04: all 0.4s ease;
 }
 
-
-/* Variables para MODO OSCURO */
 [data-theme="dark"] {
-    --body-bg: #0f172a; /* Slate 900 */
-    --text-color: #e2e8f0;
-    --card-bg: #1e293b; /* Slate 800 */
-    --border-color: #334155;
+    --body-bg: #0f172a;
+    --main-text: #f1f5f9;
 }
 
 body {
     background-color: var(--body-bg);
-    color: var(--text-color);
-    font-family: 'Segoe UI', sans-serif;
+    color: var(--main-text);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0; padding: 0;
-    transition: var(--tran-03);
     overflow-x: hidden;
 }
 
-/* --- SIDEBAR INTELIGENTE (HOVER) --- */
+/* =========================================
+   2. SIDEBAR (CORRECCIÓN Z-INDEX Y SCROLL)
+   ========================================= */
 .sidebar {
     position: fixed;
     top: 0; left: 0;
     height: 100vh;
-    width: var(--sidebar-width-collapsed); /* Por defecto pequeño */
+    width: var(--sidebar-width-collapsed);
     background: var(--sidebar-bg);
-    padding: 10px 0 0 0;
-    z-index: 1000;
-    transition: width 0.4s ease; /* Suavidad al expandir */
+    padding: 6px 0 0 0;
+    /* Z-INDEX 9999: Esto arregla que la tabla se monte encima */
+    z-index: 9999; 
+    transition: var(--tran-04);
     box-shadow: 4px 0 10px rgba(0,0,0,0.2);
     display: flex;
     flex-direction: column;
-    justify-content: space-between; /* Para empujar el footer abajo */
 }
 
-/* AL PASAR EL MOUSE: EXPANDIR */
 .sidebar:hover {
     width: var(--sidebar-width-expanded);
 }
 
-/* --- HEADER (LOGO + TEXTO) --- */
-
+/* Header */
 .sidebar .logo-details {
     height: 60px;
     display: flex;
-    align-items: center; /* Centrado vertical */
+    align-items: center;
     position: relative;
-    padding-left: 14px; /* Alinear el logo cuando la barra está cerrada */
-    overflow: hidden;
-    min-height: 60px;
+    padding-left: 24px;
+    flex-shrink: 0; /* Evita que el logo se aplaste */
 }
 
-/* El Logo (Imagen PNG) */
+/* Logo Imagen */
 .sidebar .logo-details .sidebar-logo {
-    height: 40px;
+    height: 35px; /* Un poco más pequeño para dar aire */
     width: auto;
-    min-width: 50px; /* IMPORTANTE: Guarda el espacio del icono */
+    min-width: 50px;
     object-fit: contain;
-    transition: 0.3s;
-    /* Si tu logo es oscuro y no contrasta con el fondo azul, 
-       descomenta la siguiente línea para invertir sus colores a blanco: */
-    /* filter: brightness(0) invert(1); */
+    margin-right: 10px;
 }
 
-/* El Texto "VIDANOVA" (Aparece al expandir) */
-.sidebar .logo-details .logo_name {
-    font-size: 20px;
-    color: #fff;
-    font-weight: 600;
-    margin-left: 10px; /* Espacio entre logo y texto */
-    white-space: nowrap;
-    opacity: 0;
-    transition: 0.3s;
-    pointer-events: none;
-}
-
-/* Magia: Al pasar el mouse sobre la barra, se muestra el texto */
-.sidebar:hover .logo-details .logo_name {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-/* Lista de Menú */
+/* Lista de Menú (SCROLL) */
 .sidebar ul.nav-list {
-    padding: 0; 
-    margin-top: 20px;
-    flex-grow: 1; /* Ocupa el espacio disponible */
-    overflow-y: auto; /* Scroll si hay muchos items */
+    margin-top: 10px;
+    padding: 0;
+    flex-grow: 1; 
+    overflow-y: auto; /* Permite bajar si no caben los iconos */
     overflow-x: hidden;
+    /* Ocultar barra de scroll en Firefox */
+    scrollbar-width: none; 
 }
-
-/* Ocultar scrollbar feo */
+/* Ocultar barra de scroll en Chrome/Edge */
 .sidebar ul.nav-list::-webkit-scrollbar { width: 0; }
 
 .sidebar li {
     position: relative;
-    margin: 8px 0;
+    margin: 4px 0; /* Menos margen entre items */
     list-style: none;
 }
+
+/* Enlaces (MÁS COMPACTOS) */
 .sidebar li a {
     display: flex;
     align-items: center;
-    height: 50px;
+    height: 45px; /* Reducido de 50px a 45px para que quepan más */
     text-decoration: none;
     border-left: 4px solid transparent;
     transition: var(--tran-03);
 }
 
-/* Iconos */
 .sidebar li a i {
-    height: 50px;
-    min-width: 78px; /* Ancho fijo para centrar cuando está colapsado */
+    height: 45px;
+    min-width: 78px;
     text-align: center;
-    line-height: 50px;
+    line-height: 45px;
     color: #94a3b8;
-    font-size: 24px;
+    font-size: 22px; /* Icono un pelín más pequeño */
     transition: var(--tran-03);
 }
 
-/* Texto de los enlaces */
 .sidebar li a .links_name {
     color: #e2e8f0;
-    font-size: 15px;
+    font-size: 14px; /* Texto un pelín más pequeño */
     font-weight: 400;
     white-space: nowrap;
     opacity: 0;
     pointer-events: none;
     transition: 0.2s;
 }
-.sidebar:hover li a .links_name {
-    opacity: 1;
-    pointer-events: auto;
-    transition-delay: 0.1s;
-}
 
-/* Hover & Active States */
-.sidebar li a:hover {
-    background: rgba(255,255,255,0.05);
-}
-.sidebar li a:hover i, 
-.sidebar li a:hover .links_name {
-    color: #fff;
-}
+.sidebar:hover li a .links_name { opacity: 1; pointer-events: auto; }
+
+/* Estados Hover/Active */
+.sidebar li a:hover { background: rgba(255,255,255,0.05); }
+.sidebar li a:hover i, .sidebar li a:hover .links_name { color: #fff; }
 .sidebar li a.active {
     border-left-color: var(--active-color);
     background: rgba(59, 130, 246, 0.1);
 }
 .sidebar li a.active i { color: var(--active-color); }
 
-/* Tooltip */
-.sidebar li .tooltip {
-    position: absolute;
-    top: 0; left: 122px;
-    transform: translate(-50%, -50%);
-    border-radius: 6px;
-    height: 35px; width: 122px;
-    background: #fff; color: #111827;
-    line-height: 35px; text-align: center;
-    box-shadow: 0 5px 10px rgba(0,0,0,0.2);
-    transition: 0s; opacity: 0; pointer-events: none;
-    display: block; margin-top: 25px; z-index: 1001;
-}
-.sidebar:not(:hover) li:hover .tooltip {
-    opacity: 1; top: 50%; transition: all 0.5s ease;
-}
-
-/* Títulos de sección */
+/* Etiquetas de Menú (Compactas) */
 .menu-label {
     padding-left: 30px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: #64748b;
     text-transform: uppercase;
     font-weight: bold;
-    margin-top: 15px;
+    margin-top: 10px;
+    margin-bottom: 2px;
     white-space: nowrap;
     opacity: 0;
     display: none;
 }
-.sidebar:hover .menu-label {
-    display: block; opacity: 1; transition-delay: 0.2s;
+.sidebar:hover .menu-label { display: block; opacity: 1; }
+
+/* Tooltips */
+.sidebar li .tooltip {
+    position: absolute;
+    top: -20px; left: calc(100% + 15px);
+    z-index: 3;
+    background: #fff;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    white-space: nowrap;
+    pointer-events: none;
+    transition: 0s;
+    color: #111827;
+}
+.sidebar:not(:hover) li:hover .tooltip {
+    opacity: 1; top: 50%; transform: translateY(-50%); transition: all 0.4s ease;
 }
 
-/* =========================================
-   FOOTER DE USUARIO (REDISEÑADO)
-   ========================================= */
+/* Footer de Usuario */
 .profile-content {
-    background: #111827; /* Mismo tono oscuro del sidebar */
+    background: #111827;
     border-top: 1px solid rgba(255,255,255,0.1);
-    padding: 10px 14px;
+    padding: 8px 14px;
     transition: all 0.4s ease;
     overflow: hidden;
-    /* Aseguramos que se quede al fondo */
-    margin-top: auto; 
+    margin-top: auto;
+    flex-shrink: 0; /* Evita que desaparezca si la pantalla es muy chica */
 }
 
-.profile-details {
-    display: flex;
-    align-items: center;
-    flex-wrap: nowrap;
-}
+/* ... (El resto del CSS de profile-details y main-content déjalo igual, 
+       solo asegúrate de que .sidebar tenga z-index: 9999 arriba) ... */
+.profile-details { display: flex; align-items: center; flex-wrap: nowrap; }
+.profile-img-box i { height: 40px; width: 40px; background: rgba(255,255,255,0.1); border-radius: 8px; line-height: 40px; text-align: center; font-size: 20px; color: #fff; margin-right: 15px; min-width: 40px; }
+.name_job { display: flex; flex-direction: column; justify-content: center; opacity: 0; transition: opacity 0.2s; white-space: nowrap; pointer-events: none; }
+.sidebar:hover .name_job { opacity: 1; pointer-events: auto; }
+.user-row { display: flex; align-items: center; gap: 10px; margin-bottom: 0px; }
+.name { font-size: 14px; font-weight: 600; color: #fff; }
+.key-btn { color: #64748b; font-size: 14px; display: flex; align-items: center; text-decoration: none; transition: 0.2s; }
+.key-btn:hover { color: #f59e0b; transform: scale(1.1); }
+.logout-btn { background: none; border: none; padding: 0; color: #94a3b8; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.2s; text-align: left; }
+.logout-btn:hover { color: #ef4444; }
+.logout-btn i { font-size: 12px; }
 
-/* 1. CAJA DEL ICONO (AVATAR) */
-.profile-img-box i {
-    height: 45px;
-    width: 45px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 8px;
-    line-height: 45px;
-    text-align: center;
-    font-size: 24px;
-    color: #fff;
-    margin-right: 15px; /* Separación con el texto */
-    min-width: 45px; /* Evita que se aplaste */
-}
-
-/* 2. CONTENEDOR DE TEXTO (OCULTO AL INICIO) */
-.name_job {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    opacity: 0; 
-    transition: opacity 0.2s;
-    white-space: nowrap;
-    pointer-events: none; /* No clicable si está oculto */
-}
-
-/* Mostrar solo al pasar el mouse sobre la barra */
-.sidebar:hover .name_job {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-/* 3. FILA SUPERIOR: NOMBRE + LLAVE */
-.user-row {
-    display: flex;
-    align-items: center;
-    gap: 10px; /* Espacio entre nombre y llave */
-    margin-bottom: 2px;
-}
-
-.name {
-    font-size: 15px;
-    font-weight: 600;
-    color: #fff;
-}
-
-.key-btn {
-    color: #64748b; /* Gris discreto */
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    transition: 0.2s;
-}
-
-.key-btn:hover {
-    color: #f59e0b; /* Amarillo brillante al tocar */
-    transform: scale(1.1);
-}
-
-/* 4. FILA INFERIOR: BOTÓN SALIR */
-.logout-btn {
-    background: none;
-    border: none;
-    padding: 0;
-    color: #94a3b8; /* Gris claro */
-    font-size: 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: 0.2s;
-    text-align: left;
-}
-
-.logout-btn:hover {
-    color: #ef4444; /* Rojo al tocar */
-}
-
-.logout-btn i {
-    font-size: 14px;
-}
-
-/* =========================================
-   CONTENIDO PRINCIPAL
-   ========================================= */
+/* Contenido */
 .main-content {
     margin-left: var(--sidebar-width-collapsed);
     width: calc(100% - var(--sidebar-width-collapsed));
@@ -309,39 +196,12 @@ body {
     transition: var(--tran-03);
 }
 
-/* =========================================
-   BOTÓN FLOTANTE TEMA (OPCIONAL/OCULTO)
-   ========================================= */
-.theme-toggle {
-    display: none; /* Lo ocultamos porque no lo estamos usando por ahora */
-}
+.theme-toggle { display: none; }
 
-/* =========================================
-   ADAPTACIONES MODO OSCURO (GLOBAL)
-   ========================================= */
-[data-theme="dark"] .card {
-    background-color: var(--card-bg) !important;
-    color: var(--text-color) !important;
-    border-color: var(--border-color) !important;
-}
-[data-theme="dark"] .card-header, 
-[data-theme="dark"] .card-footer {
-    background-color: rgba(255,255,255,0.05) !important;
-    border-color: var(--border-color) !important;
-    color: var(--text-color) !important;
-}
+/* Overrides modo oscuro */
+[data-theme="dark"] .card { background-color: var(--card-bg) !important; color: var(--text-color) !important; border-color: var(--border-color) !important; }
+[data-theme="dark"] .card-header, [data-theme="dark"] .card-footer { background-color: rgba(255,255,255,0.05) !important; border-color: var(--border-color) !important; color: var(--text-color) !important; }
 [data-theme="dark"] .table { color: var(--text-color) !important; }
-[data-theme="dark"] .table-light {
-    background-color: #334155 !important;
-    color: #e2e8f0 !important;
-    border-color: #475569 !important;
-}
-[data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3, 
-[data-theme="dark"] h4, [data-theme="dark"] h5 {
-    color: #fff !important;
-}
-[data-theme="dark"] .form-control, [data-theme="dark"] .form-select {
-    background-color: #334155;
-    border-color: #475569;
-    color: white;
-}
+[data-theme="dark"] .table-light { background-color: #334155 !important; color: #e2e8f0 !important; border-color: #475569 !important; }
+[data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] h5 { color: #fff !important; }
+[data-theme="dark"] .form-control, [data-theme="dark"] .form-select { background-color: #334155; border-color: #475569; color: white; }

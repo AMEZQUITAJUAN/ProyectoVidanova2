@@ -1,3 +1,24 @@
+<style>
+    /* TIMELINE VERTICAL */
+    .timeline { position: relative; padding-left: 30px; border-left: 2px solid #e9ecef; }
+    .timeline-item { position: relative; margin-bottom: 25px; }
+    
+    /* El punto (nodo) */
+    .timeline-icon {
+        position: absolute; left: -39px; top: 0;
+        width: 16px; height: 16px; border-radius: 50%;
+        background: #fff; border: 3px solid #3b82f6;
+        box-shadow: 0 0 0 3px #f8fafc;
+    }
+    
+    /* Colores según estado */
+    .status-realizado { border-color: #10b981; } /* Verde */
+    .status-pendiente { border-color: #f59e0b; } /* Naranja */
+    .status-cancelado { border-color: #ef4444; } /* Rojo */
+
+    .timeline-date { font-size: 0.85rem; color: #64748b; font-weight: 600; margin-bottom: 4px; }
+    .timeline-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+</style>
 {% extends 'layout.html' %}
 
 {% block title %}Perfil: {{ patient.nombre_completo }}{% endblock %}
@@ -29,16 +50,43 @@
                                 <span><i class="fas fa-birthday-cake me-1"></i> {{ patient.edad|default:"?" }} años</span>
                             </div>
                             
-                            <!-- BOTÓN WHATSAPP -->
-                            {% if patient.link_whatsapp %}
-                                <a href="{{ patient.link_whatsapp }}" target="_blank" class="btn btn-sm btn-success rounded-pill px-3">
-                                    <i class="fab fa-whatsapp me-2"></i> Contactar por WhatsApp
-                                </a>
+                            <!-- BOTÓN WHATSAPP INTELIGENTE -->
+                            {% if patient.numero_limpio %}
+                                <div class="btn-group">
+                                    <!-- Botón Principal (Saludo General) -->
+                                    <a href="https://wa.me/{{ patient.numero_limpio }}?text=Hola {{ patient.nombre_1|title }}, te saludamos de Vidanova IPS." target="_blank" class="btn btn-sm btn-success">
+                                        <i class="fab fa-whatsapp me-2"></i> WhatsApp
+                                    </a>
+                                    
+                                    <!-- Desplegable de Plantillas -->
+                                    <button type="button" class="btn btn-sm btn-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <span class="visually-hidden">Toggle Dropdown</span>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><h6 class="dropdown-header">Selecciona mensaje:</h6></li>
+                                        
+                                        <!-- 1. Recordatorio -->
+                                        <li><a class="dropdown-item" target="_blank" 
+                                            href="https://wa.me/{{ patient.numero_limpio }}?text=Hola {{ patient.nombre_1|title }}, te recordamos que tienes una cita programada con Vidanova. Por favor confirma tu asistencia.">
+                                            <i class="far fa-calendar-check me-2"></i> Recordatorio de Cita
+                                        </a></li>
+                                        
+                                        <!-- 2. Documentos -->
+                                        <li><a class="dropdown-item" target="_blank" 
+                                            href="https://wa.me/{{ patient.numero_limpio }}?text=Hola {{ patient.nombre_1|title }}, necesitamos que nos envíes foto de la orden vigente y autorización para continuar tu trámite.">
+                                            <i class="far fa-file-alt me-2"></i> Pedir Documentos
+                                        </a></li>
+
+                                        <!-- 3. Información -->
+                                        <li><a class="dropdown-item" target="_blank" 
+                                            href="https://wa.me/{{ patient.numero_limpio }}?text=Hola {{ patient.nombre_1|title }}, te informamos que tu trámite ya se encuentra en gestión. Te avisaremos apenas tengamos respuesta.">
+                                            <i class="fas fa-info-circle me-2"></i> Informar Gestión
+                                        </a></li>
+                                    </ul>
+                                </div>
                                 <span class="text-muted small ms-2">{{ patient.telefono }}</span>
                             {% else %}
-                                <span class="text-muted small">
-                                    <i class="fas fa-phone-slash me-1"></i> Sin teléfono válido
-                                </span>
+                                <span class="text-muted small"><i class="fas fa-phone-slash me-1"></i> Sin teléfono</span>
                             {% endif %}
                         </div>
                         <div class="text-end">
@@ -139,56 +187,67 @@
         </div>
         <!-- ==================================================== -->
 
-        <!-- Historial de Seguimientos -->
+        <!-- Historial Visual (Timeline) -->
         <div class="col-md-12">
-            <h5 class="fw-bold text-primary mb-3"><i class="fas fa-history me-2"></i>Historial de Atenciones</h5>
+            <h5 class="fw-bold text-primary mb-4"><i class="fas fa-history me-2"></i>Línea de Tiempo</h5>
             
-            <div class="card shadow-sm border-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Fecha Solicitud</th>
-                                <th>Procedimiento</th>
-                                <th>EPS</th>
-                                <th>Estado</th>
-                                <th>Observación</th>
-                                <th class="text-end">Detalle</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        {% for f in history %}
-                            <tr>
-                                <td>{{ f.fecha_solicitud_cita|date:"d/m/Y" }}</td>
-                                <td>
-                                    <span class="fw-bold text-dark">{{ f.tipo_procedimiento }}</span>
-                                    <div class="small text-muted">{{ f.cups|default:"" }}</div>
-                                </td>
-                                <td>{{ f.entidad_aseguradora|default:"-" }}</td>
-                                <td>
-                                    {% if "REALIZADO" in f.estado_solicitud|upper %}
-                                        <span class="badge bg-success">REALIZADO</span>
-                                    {% elif "PENDIENTE" in f.estado_solicitud|upper %}
-                                        <span class="badge bg-warning text-dark">PENDIENTE</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">{{ f.estado_solicitud }}</span>
-                                    {% endif %}
-                                </td>
-                                <td style="max-width: 200px;" class="text-truncate">{{ f.observaciones|default:"-" }}</td>
-                                <td class="text-end">
-                                    <a href="{% url 'followup_detail' f.id %}" class="btn btn-sm btn-light border">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="6" class="text-center py-4">Este paciente no tiene seguimientos registrados.</td>
-                            </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
+            <div class="timeline ms-2">
+                {% for f in history %}
+                <div class="timeline-item">
+                    <!-- Icono (Color según estado) -->
+                    <div class="timeline-icon 
+                        {% if 'REALIZADO' in f.estado_solicitud %}status-realizado
+                        {% elif 'CANCELADO' in f.estado_solicitud %}status-cancelado
+                        {% else %}status-pendiente{% endif %}">
+                    </div>
+
+                    <!-- Fecha -->
+                    <div class="timeline-date">
+                        {{ f.fecha_solicitud_cita|date:"d M Y" }} 
+                        <small class="fw-normal text-muted ms-2">Hace {{ f.dias_espera_actuales }} días</small>
+                    </div>
+
+                    <!-- Tarjeta de Contenido -->
+                    <div class="timeline-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="fw-bold mb-1 text-dark">{{ f.tipo_procedimiento }}</h6>
+                                <div class="small text-muted">{{ f.entidad_aseguradora }} | CUPS: {{ f.cups|default:"--" }}</div>
+                            </div>
+                            <!-- Badge Estado -->
+                            {% if "REALIZADO" in f.estado_solicitud %}
+                                <span class="badge bg-success bg-opacity-10 text-success">REALIZADO</span>
+                            {% elif "PENDIENTE" in f.estado_solicitud %}
+                                <span class="badge bg-warning bg-opacity-10 text-warning">PENDIENTE</span>
+                            {% else %}
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary">{{ f.estado_solicitud }}</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Fechas Clave -->
+                        {% if f.fecha_cita %}
+                        <div class="mt-2 p-2 bg-light rounded small border border-light">
+                            <i class="far fa-calendar-check text-primary me-1"></i> 
+                            Cita Asignada: <strong>{{ f.fecha_cita|date:"d/m/Y" }}</strong>
+                        </div>
+                        {% endif %}
+
+                        <!-- Observaciones -->
+                        {% if f.observaciones %}
+                        <div class="mt-2 text-secondary small fst-italic border-top pt-2">
+                            {{ f.observaciones|linebreaksbr }}
+                        </div>
+                        {% endif %}
+
+                        <!-- Acciones -->
+                        <div class="mt-2 text-end">
+                            <a href="{% url 'followup_detail' f.id %}" class="btn btn-xs btn-link text-decoration-none">Ver detalle completo →</a>
+                        </div>
+                    </div>
                 </div>
+                {% empty %}
+                <div class="text-muted ms-3">No hay historial registrado.</div>
+                {% endfor %}
             </div>
         </div>
 

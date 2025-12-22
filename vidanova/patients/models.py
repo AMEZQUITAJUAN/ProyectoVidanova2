@@ -84,6 +84,17 @@ class Patient(models.Model):
         # Retornar URL
         return f"https://wa.me/{numero_limpio}?text={mensaje}"
     
+    @property
+    def numero_limpio(self):
+        """Devuelve solo el número con indicativo (57300...) para usar en templates."""
+        if not self.telefono: return None
+        num = "".join(filter(str.isdigit, str(self.telefono)))
+        if len(num) < 10: return None
+        if not num.startswith('57'): num = '57' + num
+        return num
+    
+
+    
 
     
     
