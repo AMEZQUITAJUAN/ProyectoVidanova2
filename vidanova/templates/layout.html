@@ -19,11 +19,11 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar">
-        <!-- Logo -->
+        <!-- Contenedor Superior -->
         <div>
             <div class="logo-details">
-                <i class='bx bxs-heart-circle'></i>
-                <div class="logo_name">VIDANOVA</div>
+                <!-- IMAGEN DEL LOGO (Como ya tiene texto, solo ponemos la imagen) -->
+                <img src="{% static 'img/logo_vidanova2.png' %}" alt="Logo" class="sidebar-logo">
             </div>
             
             <!-- Menú -->
@@ -66,6 +66,15 @@
                         <span class="links_name">Agenda</span>
                     </a>
                     <span class="tooltip">Agenda</span>
+                </li>
+
+                <!-- Item Reporte Clínico -->
+                <li>
+                    <a href="{% url 'reporte_tratamientos_activos' %}" class="{% if 'reporte-activos' in request.path %}active{% endif %}">
+                        <i class='bx bxs-report'></i>
+                        <span class="links_name">Censo Clínico</span>
+                    </a>
+                    <span class="tooltip">Censo</span>
                 </li>
 
                 <!-- ESTRATEGIA: Para Gerencia -->

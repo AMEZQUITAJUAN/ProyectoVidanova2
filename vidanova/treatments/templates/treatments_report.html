@@ -1,0 +1,147 @@
+{% extends 'layout.html' %}
+
+{% block title %}Censo de Tratamientos Activos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark"><i class="fas fa-procedures text-primary me-2"></i>Censo de Tratamientos Activos</h3>
+            <p class="text-muted">Monitor de pacientes en curso clínico.</p>
+        </div>
+        
+        <!-- Botón para ver los que terminan pronto -->
+        {% if count_finalizar > 0 %}
+        <div class="alert alert-warning py-1 px-3 d-flex align-items-center mb-0 shadow-sm">
+            <i class="fas fa-flag-checkered me-2"></i>
+            <strong>{{ count_finalizar }}</strong> pacientes finalizan pronto.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- TARJETAS DE RESUMEN (KPIs) -->
+    <div class="row g-4 mb-5">
+        <!-- Total -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-4 border-primary p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small fw-bold text-uppercase">Total Activos</div>
+                        <div class="fs-2 fw-bold text-dark">{{ total_activos }}</div>
+                    </div>
+                    <i class="fas fa-users fs-1 text-primary opacity-25"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quimio -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-4 border-purple p-3" style="border-color: #8b5cf6 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small fw-bold text-uppercase">Quimioterapia</div>
+                        <div class="fs-2 fw-bold text-dark">{{ stats.quimio }}</div>
+                    </div>
+                    <i class="fas fa-syringe fs-1 text-purple opacity-25" style="color: #8b5cf6;"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Radio -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-4 border-warning p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small fw-bold text-uppercase">Radioterapia</div>
+                        <div class="fs-2 fw-bold text-dark">{{ stats.radio }}</div>
+                    </div>
+                    <i class="fas fa-radiation fs-1 text-warning opacity-25"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Otros -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-4 border-info p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small fw-bold text-uppercase">Otros / Inmuno</div>
+                        <div class="fs-2 fw-bold text-dark">{{ stats.inmuno|add:stats.otros }}</div>
+                    </div>
+                    <i class="fas fa-pills fs-1 text-info opacity-25"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE DETALLE -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold">Detalle de Pacientes</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Paciente</th>
+                        <th>Tipo Tratamiento</th>
+                        <th>Esquema / Protocolo</th>
+                        <th>Fecha Inicio</th>
+                        <th>Progreso</th>
+                        <th class="text-end">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for t in tratamientos %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark">{{ t.patient.nombre_completo }}</div>
+                            <div class="small text-muted">{{ t.patient.numero_documento }}</div>
+                        </td>
+                        <td>
+                            {% if t.tipo == 'QUIMIO' %}
+                                <span class="badge" style="background-color: #8b5cf6;">QUIMIO</span>
+                            {% elif t.tipo == 'RADIO' %}
+                                <span class="badge bg-warning text-dark">RADIO</span>
+                            {% else %}
+                                <span class="badge bg-info text-dark">{{ t.tipo }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ t.nombre_esquema }}</td>
+                        <td>{{ t.fecha_inicio|date:"d/m/Y" }}</td>
+                        <td style="width: 20%;">
+                            <div class="d-flex align-items-center">
+                                <div class="progress flex-grow-1 me-2" style="height: 8px;">
+                                    <div class="progress-bar {% if t.progreso >= 100 %}bg-success{% else %}bg-primary{% endif %}" 
+                                         role="progressbar" 
+                                         style="width: {{ t.progreso }}%">
+                                    </div>
+                                </div>
+                                <span class="small fw-bold">{{ t.progreso }}%</span>
+                            </div>
+                            <div class="small text-muted" style="font-size: 0.75rem;">
+                                {{ t.total_ciclos }} ciclos planificados
+                            </div>
+                        </td>
+                        <td class="text-end">
+                            <a href="{% url 'patient_profile' t.patient.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-external-link-alt"></i> Ver
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="fas fa-folder-open fa-2x mb-3"></i><br>
+                            No hay tratamientos activos registrados.
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

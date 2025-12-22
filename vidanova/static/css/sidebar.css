@@ -56,30 +56,47 @@ body {
     width: var(--sidebar-width-expanded);
 }
 
-/* Header del Sidebar */
+/* --- HEADER (LOGO + TEXTO) --- */
+
 .sidebar .logo-details {
     height: 60px;
     display: flex;
-    align-items: center;
-    padding-left: 24px;
+    align-items: center; /* Centrado vertical */
+    position: relative;
+    padding-left: 14px; /* Alinear el logo cuando la barra está cerrada */
     overflow: hidden;
     min-height: 60px;
 }
-.sidebar .logo-details i {
-    font-size: 28px;
-    color: #fff;
-    min-width: 30px;
+
+/* El Logo (Imagen PNG) */
+.sidebar .logo-details .sidebar-logo {
+    height: 40px;
+    width: auto;
+    min-width: 50px; /* IMPORTANTE: Guarda el espacio del icono */
+    object-fit: contain;
+    transition: 0.3s;
+    /* Si tu logo es oscuro y no contrasta con el fondo azul, 
+       descomenta la siguiente línea para invertir sus colores a blanco: */
+    /* filter: brightness(0) invert(1); */
 }
+
+/* El Texto "VIDANOVA" (Aparece al expandir) */
 .sidebar .logo-details .logo_name {
     font-size: 20px;
     color: #fff;
     font-weight: 600;
-    margin-left: 15px;
+    margin-left: 10px; /* Espacio entre logo y texto */
     white-space: nowrap;
     opacity: 0;
     transition: 0.3s;
+    pointer-events: none;
 }
-.sidebar:hover .logo-details .logo_name { opacity: 1; }
+
+/* Magia: Al pasar el mouse sobre la barra, se muestra el texto */
+.sidebar:hover .logo-details .logo_name {
+    opacity: 1;
+    pointer-events: auto;
+}
 
 /* Lista de Menú */
 .sidebar ul.nav-list {
