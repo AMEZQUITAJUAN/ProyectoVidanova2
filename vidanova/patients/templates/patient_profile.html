@@ -24,11 +24,22 @@
                         </div>
                         <div class="flex-grow-1">
                             <h2 class="fw-bold mb-1">{{ patient.nombre_completo }}</h2>
-                            <div class="d-flex gap-3 text-muted">
+                            <div class="d-flex gap-3 text-muted mb-2">
                                 <span><i class="far fa-id-card me-1"></i> {{ patient.tipo_documento }} {{ patient.numero_documento }}</span>
                                 <span><i class="fas fa-birthday-cake me-1"></i> {{ patient.edad|default:"?" }} años</span>
-                                <span><i class="fas fa-venus-mars me-1"></i> {{ patient.genero|default:"?" }}</span>
                             </div>
+                            
+                            <!-- BOTÓN WHATSAPP -->
+                            {% if patient.link_whatsapp %}
+                                <a href="{{ patient.link_whatsapp }}" target="_blank" class="btn btn-sm btn-success rounded-pill px-3">
+                                    <i class="fab fa-whatsapp me-2"></i> Contactar por WhatsApp
+                                </a>
+                                <span class="text-muted small ms-2">{{ patient.telefono }}</span>
+                            {% else %}
+                                <span class="text-muted small">
+                                    <i class="fas fa-phone-slash me-1"></i> Sin teléfono válido
+                                </span>
+                            {% endif %}
                         </div>
                         <div class="text-end">
                             <!-- NUEVO BOTÓN PDF -->

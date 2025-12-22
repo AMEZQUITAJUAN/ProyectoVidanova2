@@ -520,27 +520,36 @@ def calendar_api(request):
 @login_required
 def centro_alertas(request):
     """
-    Muestra el detalle de las alertas para corrección inmediata.
+    Muestra alertas con límite de seguridad y paginación.
     """
-    # A. ALERTAS DE INCONSISTENCIA (Cita antes de Solicitud)
-    inconsistencias = FollowUp.objects.filter(
+    # A. INCONSISTENCIAS (Limitamos a 100 para rendimiento y UX)
+    inconsistencias_qs = FollowUp.objects.filter(
         fecha_cita__lt=F('fecha_solicitud_cita')
     ).select_related('patient')
+    
+    total_inconsistencias = inconsistencias_qs.count()
+    # Solo traemos los primeros 100 para no explotar la vista
+    inconsistencias = inconsistencias_qs[:100] 
 
-    # B. ALERTAS DE VENCIMIENTO (> 30 Días sin gestión)
+    # B. VENCIDOS (Paginación normal)
     fecha_limite = timezone.now().date() - timedelta(days=30)
     estados_pendientes = ['PENDIENTE', 'EN_GESTION', 'POR_GESTIONAR', 'NO_AUTORIZADO']
     
-    vencidos = FollowUp.objects.filter(
+    vencidos_qs = FollowUp.objects.filter(
         estado_solicitud__in=estados_pendientes,
         fecha_solicitud_cita__lt=fecha_limite,
         fecha_cita__isnull=True
     ).select_related('patient').order_by('fecha_solicitud_cita')
 
+    paginator = Paginator(vencidos_qs, 20) # Aumentamos a 20 por página para aprovechar el scroll
+    page_number = request.GET.get('page')
+    vencidos_page = paginator.get_page(page_number)
+
     context = {
         'inconsistencias': inconsistencias,
-        'vencidos': vencidos,
-        'total_alertas': inconsistencias.count() + vencidos.count()
+        'total_inconsistencias': total_inconsistencias, # Para mostrar el número real total
+        'vencidos': vencidos_page,
+        'total_alertas': total_inconsistencias + vencidos_qs.count()
     }
     return render(request, 'alerts_center.html', context)
 

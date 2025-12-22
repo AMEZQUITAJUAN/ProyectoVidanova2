@@ -1,103 +1,155 @@
 {% extends 'layout.html' %}
+{% load followups_extras %}
 
 {% block title %}Centro de Alertas{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
     
+    <!-- Encabezado -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold text-dark"><i class="bx bxs-bell-ring text-danger me-2"></i>Centro de Alertas</h3>
-            <p class="text-muted">Gestión de inconsistencias y casos críticos.</p>
+            <p class="text-muted">Panel de control de calidad de datos.</p>
         </div>
-        <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary">Volver al Tablero</a>
+        <a href="{% url 'followup_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="bx bx-arrow-back me-2"></i>Volver al Tablero
+        </a>
     </div>
 
     {% if total_alertas == 0 %}
         <div class="alert alert-success text-center py-5 shadow-sm border-0">
             <i class="bx bx-check-shield fs-1 mb-3"></i>
-            <h4>¡Todo limpio!</h4>
+            <h4>¡Excelente! Todo limpio</h4>
             <p>No hay alertas críticas ni errores de datos pendientes.</p>
         </div>
     {% else %}
 
         <div class="row g-4">
             
-            <!-- 1. ERRORES DE FECHA (GRAVE) -->
+            <!-- 1. ERRORES DE FECHA (Scrollable) -->
             <div class="col-lg-6">
                 <div class="card border-danger shadow-sm h-100">
                     <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0 fw-bold"><i class="fas fa-bug me-2"></i>Inconsistencias de Fecha</h6>
-                        <span class="badge bg-white text-danger">{{ inconsistencias|length }}</span>
+                        <div>
+                            <h6 class="mb-0 fw-bold"><i class="fas fa-bug me-2"></i>Inconsistencias de Fecha</h6>
+                            <small class="opacity-75">Mostrando los primeros {{ inconsistencias|length }} de {{ total_inconsistencias }}</small>
+                        </div>
+                        <span class="badge bg-white text-danger">{{ total_inconsistencias }}</span>
                     </div>
-                    <div class="card-body p-0">
+                    
+                    <!-- AQUÍ ESTÁ EL TRUCO: Altura fija + Scroll -->
+                    <div class="card-body p-0" style="height: 600px; overflow-y: auto;">
                         {% if inconsistencias %}
-                            <div class="alert alert-light m-3 border-danger small text-danger">
-                                <i class="fas fa-info-circle me-1"></i> La <strong>Fecha de Cita</strong> no puede ser anterior a la <strong>Fecha de Solicitud</strong>. Revisa la digitación.
+                            <div class="alert alert-light m-0 border-bottom small text-danger sticky-top">
+                                <i class="fas fa-info-circle me-1"></i> <strong>Error Lógico:</strong> La fecha de Cita es anterior a la Solicitud.
                             </div>
                             <div class="list-group list-group-flush">
                                 {% for r in inconsistencias %}
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>{{ r.patient.nombre_completo }}</strong>
-                                            <div class="small text-muted">{{ r.tipo_procedimiento }}</div>
-                                            <div class="small mt-1">
-                                                <span class="text-success">Sol: {{ r.fecha_solicitud_cita|date:"d/m/Y" }}</span>
-                                                <i class="fas fa-arrow-right mx-1 text-muted"></i>
-                                                <span class="text-danger fw-bold">Cita: {{ r.fecha_cita|date:"d/m/Y" }}</span>
+                                        <div style="max-width: 70%;">
+                                            <strong class="text-truncate d-block">{{ r.patient.nombre_completo|title }}</strong>
+                                            <div class="small text-muted">{{ r.tipo_procedimiento|title }}</div>
+                                            <div class="small mt-1 d-flex gap-2">
+                                                <span class="text-success">Sol: {{ r.fecha_solicitud_cita|date:"d/m/y" }}</span>
+                                                <span class="text-danger fw-bold">Cita: {{ r.fecha_cita|date:"d/m/y" }}</span>
                                             </div>
                                         </div>
-                                        <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-outline-danger">
+                                        <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-outline-danger shadow-sm">
                                             <i class="fas fa-pen"></i> Corregir
                                         </a>
                                     </div>
                                 {% endfor %}
                             </div>
                         {% else %}
-                            <div class="text-center py-4 text-muted">Sin errores lógicos.</div>
+                            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                                <i class="bx bx-check-circle fs-1 mb-2 text-success"></i>
+                                <p>Sin errores lógicos.</p>
+                            </div>
                         {% endif %}
                     </div>
                 </div>
             </div>
 
-            <!-- 2. CASOS VENCIDOS (URGENTE) -->
+            <!-- 2. CASOS VENCIDOS (Scrollable + Paginación) -->
             <div class="col-lg-6">
                 <div class="card border-warning shadow-sm h-100">
                     <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
                         <h6 class="mb-0 fw-bold"><i class="fas fa-hourglass-end me-2"></i>Casos Vencidos (+30 Días)</h6>
-                        <span class="badge bg-white text-dark">{{ vencidos|length }}</span>
+                        <span class="badge bg-white text-dark">{{ vencidos.paginator.count }}</span>
                     </div>
-                    <div class="card-body p-0">
+                    
+                    <!-- AQUÍ TAMBIÉN: Altura fija + Scroll -->
+                    <div class="card-body p-0" style="height: 600px; overflow-y: auto; display: flex; flex-direction: column;">
                         {% if vencidos %}
-                            <div class="alert alert-light m-3 border-warning small text-dark">
-                                <i class="fas fa-exclamation-circle me-1"></i> Pacientes con estado <strong>Pendiente/Gestión</strong> esperando hace más de un mes.
+                            <div class="alert alert-light m-0 border-bottom small text-dark sticky-top">
+                                <i class="fas fa-exclamation-circle me-1"></i> Pacientes sin gestión hace más de un mes.
                             </div>
-                            <div class="list-group list-group-flush" style="max-height: 500px; overflow-y: auto;">
+                            
+                            <div class="list-group list-group-flush flex-grow-1">
                                 {% for r in vencidos %}
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>{{ r.patient.nombre_completo }}</strong>
-                                            <div class="small text-muted">{{ r.entidad_aseguradora }} - {{ r.tipo_procedimiento }}</div>
+                                        <div style="max-width: 65%;">
+                                            <strong class="text-truncate d-block">{{ r.patient.nombre_completo|title }}</strong>
+                                            <div class="small text-muted text-truncate">
+                                                {{ r.entidad_aseguradora|default:"Sin EPS" }} - {{ r.tipo_procedimiento|title }}
+                                            </div>
                                             <div class="small mt-1 text-danger fw-bold">
-                                                Hace {{ r.dias_espera_actuales }} días
-                                                <span class="text-muted fw-normal">({{ r.fecha_solicitud_cita|date:"d/m/Y" }})</span>
+                                                <i class="far fa-clock"></i> Hace {{ r.dias_espera_actuales }} días
                                             </div>
                                         </div>
-                                        <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-outline-warning text-dark">
-                                            <i class="fas fa-pen"></i> Gestionar
-                                        </a>
+                                        <div class="d-flex gap-1">
+                                            {% if r.patient.link_whatsapp %}
+                                                <a href="{{ r.patient.link_whatsapp }}" target="_blank" class="btn btn-sm btn-success" title="WhatsApp">
+                                                    <i class="fab fa-whatsapp"></i>
+                                                </a>
+                                            {% endif %}
+                                            <a href="{% url 'editar_followup' r.id %}" class="btn btn-sm btn-outline-warning text-dark" title="Gestionar">
+                                                <i class="fas fa-pen"></i>
+                                            </a>
+                                        </div>
                                     </div>
                                 {% endfor %}
                             </div>
+
+                            <!-- Footer de Paginación Pegado al Fondo -->
+                            {% if vencidos.has_other_pages %}
+                            <div class="p-2 border-top bg-light text-center sticky-bottom mt-auto">
+                                <div class="btn-group shadow-sm" role="group">
+                                    {% if vencidos.has_previous %}
+                                        <a href="?{% param_replace page=vencidos.previous_page_number %}" class="btn btn-sm btn-white border">
+                                            <i class="fas fa-chevron-left"></i>
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-sm btn-white border disabled"><i class="fas fa-chevron-left"></i></button>
+                                    {% endif %}
+
+                                    <button class="btn btn-sm btn-white border disabled fw-bold text-dark px-3">
+                                        {{ vencidos.number }} / {{ vencidos.paginator.num_pages }}
+                                    </button>
+
+                                    {% if vencidos.has_next %}
+                                        <a href="?{% param_replace page=vencidos.next_page_number %}" class="btn btn-sm btn-white border">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-sm btn-white border disabled"><i class="fas fa-chevron-right"></i></button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+
                         {% else %}
-                            <div class="text-center py-4 text-muted">No hay casos vencidos.</div>
+                            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                                <i class="bx bx-check-circle fs-1 mb-2 text-success"></i>
+                                <p>No hay casos vencidos.</p>
+                            </div>
                         {% endif %}
                     </div>
                 </div>
             </div>
 
         </div>
-
     {% endif %}
 </div>
 {% endblock %}

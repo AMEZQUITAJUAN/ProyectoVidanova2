@@ -20,7 +20,7 @@ class Patient(models.Model):
     apellido_1 = models.CharField(max_length=100)
     apellido_2 = models.CharField(max_length=100, null=True, blank=True)
     
-    # Demográficos
+    # Demográficos Campos
     correo = models.EmailField(null=True, blank=True)
     genero = models.CharField(max_length=50, null=True, blank=True)
     edad = models.PositiveIntegerField(null=True, blank=True)
@@ -29,6 +29,7 @@ class Patient(models.Model):
     departamento_residencia = models.CharField(max_length=150, null=True, blank=True)
     ciudad_residencia = models.CharField(max_length=150, null=True, blank=True)
     estado_natural = models.CharField(max_length=100, null=True, blank=True)
+    telefono = models.CharField(max_length=50, null=True, blank=True, verbose_name="Teléfono / Celular")
 
     # Auditoría
     fecha_registro = models.DateTimeField(auto_now_add=True)
@@ -56,3 +57,33 @@ class Patient(models.Model):
     @property
     def documento(self):
         return self.numero_documento
+    
+    @property
+    def link_whatsapp(self):
+        """
+        Genera el enlace directo para abrir WhatsApp.
+        Limpia el número y agrega el indicativo de Colombia (57).
+        """
+        if not self.telefono:
+            return None
+        
+        # 1. Dejar solo números (quitar espacios, guiones, letras)
+        numero_limpio = "".join(filter(str.isdigit, str(self.telefono)))
+        
+        # 2. Validar longitud mínima (un celular tiene 10 dígitos)
+        if len(numero_limpio) < 10:
+            return None
+            
+        # 3. Agregar indicativo 57 si no lo tiene
+        if not numero_limpio.startswith('57'):
+            numero_limpio = '57' + numero_limpio
+            
+        # 4. Crear Mensaje Predeterminado
+        mensaje = f"Hola {self.nombre_1.title()}, te saludamos de Vidanova IPS. Nos comunicamos respecto a tu solicitud."
+        
+        # Retornar URL
+        return f"https://wa.me/{numero_limpio}?text={mensaje}"
+    
+
+    
+    

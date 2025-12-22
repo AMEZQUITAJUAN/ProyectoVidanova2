@@ -233,6 +233,7 @@ def importar_archivo_masivo(file_path):
         'fecha_solicitud_cita': ['fecha_de_solicitud_de_cita', 'fecha_solicitud', 'fecha_de_creaci', 'fecha_creacion', 'numero_solicitud', 'fecha_orden'],
         'fecha_cita': ['fecha_de_cita', 'fecha_cita', 'fecha_asignada'],
         'fecha_captacion': ['fecha_de_captacion', 'fecha_captacion'],
+        'telefono': ['telefono', 'telefonos', 'celular', 'movil', 'contacto'],
         
         # MAPEO DE LOS CAMPOS DE TU TABLA NUEVA
         'estado_solicitud': ['estado_de_la_solicitud', 'estado_de_solicitud', 'estado', 'estado_asist', 'estado_adm'], 
@@ -275,16 +276,22 @@ def importar_archivo_masivo(file_path):
     for row in df.itertuples(index=False):
         doc = limpiar_dato(getattr(row, 'numero_documento', None))
         if not doc or doc in processed_p: continue
+        
         gen = limpiar_dato(getattr(row, 'genero', None))
         try: edad = int(float(getattr(row, 'edad', 0)))
         except: edad = None
+        
         n1 = limpiar_dato(getattr(row, 'n1', None))
         n2 = limpiar_dato(getattr(row, 'n2', None))
         a1 = limpiar_dato(getattr(row, 'a1', None))
         a2 = limpiar_dato(getattr(row, 'a2', None))
         full = limpiar_dato(getattr(row, 'nombre_completo', None))
+        
         vn1 = n1 if n1 else (full if full else "PACIENTE")
         va1 = a1 if a1 else ""
+
+        # --- NUEVO: CAPTURAR TELÉFONO ---
+        tel = limpiar_dato(getattr(row, 'telefono', None))
 
         if doc in pmap:
             p = Patient(id=pmap[doc])
@@ -294,13 +301,15 @@ def importar_archivo_masivo(file_path):
             if a2: p.apellido_2 = a2.upper()[:99]
             if gen: p.genero = gen
             if edad: p.edad = edad
+            if tel: p.telefono = tel # <--- ACTUALIZAR SI HAY DATO
             update_ps.append(p)
         else:
             new_ps.append(Patient(
                 numero_documento=doc, tipo_documento='CC',
                 nombre_1=vn1.upper()[:99], nombre_2=n2.upper()[:99] if n2 else None,
                 apellido_1=va1.upper()[:99], apellido_2=a2.upper()[:99] if a2 else None,
-                genero=gen, edad=edad
+                genero=gen, edad=edad,
+                telefono=tel # <--- GUARDAR EN EL NUEVO
             ))
         processed_p.add(doc)
 
@@ -308,9 +317,11 @@ def importar_archivo_masivo(file_path):
         Patient.objects.bulk_create(new_ps, batch_size=500, ignore_conflicts=True)
         new_db = Patient.objects.filter(numero_documento__in=docs).values('id', 'numero_documento')
         for p in new_db: pmap[p['numero_documento']] = p['id']
+    
     if update_ps:
-        Patient.objects.bulk_update(update_ps, ['nombre_1','nombre_2','apellido_1','apellido_2','genero','edad'], batch_size=500)
-
+        # AGREGAMOS 'telefono' A LA LISTA DE CAMPOS A ACTUALIZAR
+        Patient.objects.bulk_update(update_ps, ['nombre_1','nombre_2','apellido_1','apellido_2','genero','edad', 'telefono'], batch_size=500)
+        
     # Seguimientos
     new_fs = []
     existing_sigs = set()
