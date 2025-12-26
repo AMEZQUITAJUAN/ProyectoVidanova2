@@ -424,112 +424,113 @@
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     
-                    <div class="modal-body bg-light p-4"> <!-- Más padding interno -->
-                        
-                        <div class="alert alert-info border-0 shadow-sm d-flex align-items-center mb-4">
-                            <i class="fas fa-info-circle fs-4 me-3"></i>
-                            <div>
-                                Estás editando <strong id="modalCount" class="fs-5">0</strong> registros simultáneamente.
-                                <div class="small mt-1">Los campos que dejes en blanco <u>mantendrán su valor actual</u> en la base de datos.</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row g-4"> <!-- Más espacio entre columnas -->
-                            
-                            <!-- COLUMNA 1: TIEMPOS Y ESTADO -->
-                            <div class="col-md-4">
-                                <div class="card border-0 shadow-sm h-100">
-                                    <div class="card-header bg-white fw-bold text-primary border-bottom-0">
-                                        <i class="far fa-clock me-1"></i> 1. Tiempos y Estado
-                                    </div>
-                                    <div class="card-body pt-0">
-                                        <label class="form-label small fw-bold">Estado Solicitud</label>
-                                        <select name="bulk_status" class="form-select mb-3">
-                                            <option value="" selected>-- Sin cambios --</option>
-                                            <option value="EN_GESTION">EN GESTIÓN</option>
-                                            <option value="AGENDADO">AGENDADO</option>
-                                            <option value="REALIZADO">REALIZADO</option>
-                                            <option value="PENDIENTE">PENDIENTE</option>
-                                            <option value="CANCELADO">CANCELADO</option>
-                                        </select>
-                                        
-                                        <label class="form-label small fw-bold text-success">Fecha Cita</label>
-                                        <input type="date" name="bulk_date_cita" class="form-control mb-3">
-
-                                        <label class="form-label small fw-bold">Fecha Solicitud</label>
-                                        <input type="date" name="bulk_date_solicitud" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- COLUMNA 2: CLASIFICACIÓN -->
-                            <div class="col-md-4">
-                                <div class="card border-0 shadow-sm h-100">
-                                    <div class="card-header bg-white fw-bold text-dark border-bottom-0">
-                                        <i class="fas fa-tags me-1"></i> 2. Clasificación
-                                    </div>
-                                    <div class="card-body pt-0">
-                                        <label class="form-label small fw-bold">Prestador Asignado</label>
-                                        <select name="bulk_provider" class="form-select mb-3">
-                                            <option value="" selected>-- Sin cambios --</option>
-                                            <option value="Vidanova">Vidanova</option>
-                                            <option value="Andes del sur">Andes del sur</option>
-                                            <option value="BIOS">BIOS</option>
-                                            <option value="Cardio Imagenes">Cardio Imágenes</option>
-                                            <option value="CIMO">CIMO</option>
-                                            <option value="Clinica Imbanaco">Clínica Imbanaco</option>
-                                            <option value="Clinica La Estancia">Clínica La Estancia</option>
-                                            <option value="Clinica San Rafael">Clínica San Rafael</option>
-                                            <option value="Clinica Santa Gracia">Clínica Santa Gracia</option>
-                                            <option value="Dumian">Dumian</option>
-                                            <option value="Fundacion Corazon y Pulmon">Fundación Corazón y Pulmón</option>
-                                            <option value="Gamanuclear">Gamanuclear</option>
-                                            <option value="Laboratorio Adriana Correa">Laboratorio Adriana Correa</option>
-                                            <option value="Previred">Previred</option>
-                                            <option value="Otros">Otros</option>
-                                        </select>
-
-                                        <label class="form-label small fw-bold">Tipo Paciente</label>
-                                        <select name="bulk_patient_type" class="form-select">
-                                            <option value="" selected>-- Sin cambios --</option>
-                                            <option value="INCIDENTE">INCIDENTE</option>
-                                            <option value="PREVALENTE">PREVALENTE</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- COLUMNA 3: GESTIÓN -->
-                            <div class="col-md-4">
-                                <div class="card border-0 shadow-sm h-100">
-                                    <div class="card-header bg-white fw-bold text-success border-bottom-0">
-                                        <i class="fas fa-clipboard-check me-1"></i> 3. Gestión y Notas
-                                    </div>
-                                    <div class="card-body pt-0">
-                                        <label class="form-label small fw-bold text-danger">Barrera de Acceso</label>
-                                        <select name="bulk_barrier" class="form-select mb-3">
-                                            <option value="" selected>-- Sin cambios --</option>
-                                            <option value="">(Quitar Barrera)</option>
-                                            <option value="No contesta">No contesta</option>
-                                            <option value="Sin convenio">Sin convenio</option>
-                                            <option value="Orden vencida">Orden vencida</option>
-                                            <option value="Falta autorización">Falta autorización</option>
-                                            <option value="Agenda cerrada">Agenda cerrada</option>
-                                            <option value="Paciente no acepta">Paciente no acepta</option>
-                                            <option value="Reprogramado">Reprogramado</option>
-                                            <option value="Domicilio lejano">Domicilio lejano</option>
-                                            <option value="Fallecido">Fallecido</option>
-                                            <option value="Otro">Otro</option>
-                                        </select>
-
-                                        <label class="form-label small fw-bold text-success">Nota Bitácora</label>
-                                        <textarea name="bulk_observation" class="form-control" rows="4" placeholder="Escribe aquí la nota para todos los seleccionados..."></textarea>
-                                    </div>
-                                </div>
-                            </div>
-
+                    <div class="modal-body bg-light p-4">
+                    
+                    <div class="alert alert-primary border-0 shadow-sm d-flex align-items-center mb-4">
+                        <i class="fas fa-edit fs-4 me-3"></i>
+                        <div>
+                            Editando <strong><span id="modalCount">0</span> pacientes</strong>.
+                            <div class="small mt-1">Los campos que dejes en <strong>"Mantener valor actual"</strong> no se modificarán en la base de datos.</div>
                         </div>
                     </div>
+                    
+                    <div class="row g-4">
+                        
+                        <!-- COLUMNA 1: ESTADO Y FECHAS -->
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-primary border-bottom-0">
+                                    <i class="far fa-clock me-1"></i> 1. Estado y Tiempos
+                                </div>
+                                <div class="card-body pt-0">
+                                    <label class="form-label small fw-bold">Nuevo Estado</label>
+                                    <select name="bulk_status" id="bulk_status" class="form-select mb-3 border-primary" onchange="toggleRequeridos()">
+                                        <option value="" selected class="text-muted">-- Mantener estado actual --</option>
+                                        <option value="EN_GESTION">🟡 EN GESTIÓN</option>
+                                        <option value="PENDIENTE">🟠 PENDIENTE</option>
+                                        <option value="AGENDADO">🔵 AGENDADO</option>
+                                        <option value="REALIZADO">🟢 REALIZADO (Cerrar Caso)</option>
+                                        <option value="CANCELADO">🔴 CANCELADO</option>
+                                    </select>
+                                    
+                                    <label class="form-label small fw-bold">Fecha Solicitud <span class="req-star text-danger d-none">*</span></label>
+                                    <input type="date" name="bulk_date_solicitud" id="bulk_date_solicitud" class="form-control mb-3">
+
+                                    <label class="form-label small fw-bold">Fecha Cita <span class="req-star text-danger d-none">*</span></label>
+                                    <input type="date" name="bulk_date_cita" id="bulk_date_cita" class="form-control">
+                                    <div class="form-text x-small text-muted">Obligatorio si es Agendado/Realizado</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- COLUMNA 2: CLASIFICACIÓN -->
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-dark border-bottom-0">
+                                    <i class="fas fa-tags me-1"></i> 2. Clasificación Completa
+                                </div>
+                                <div class="card-body pt-0">
+                                    <label class="form-label small fw-bold">Prestador Asignado <span class="req-star text-danger d-none">*</span></label>
+                                    <select name="bulk_provider" id="bulk_provider" class="form-select mb-3">
+                                        <option value="" selected class="text-muted">-- Mantener actual --</option>
+                                        <option value="Vidanova">Vidanova</option>
+                                        <option value="Andes del sur">Andes del sur</option>
+                                        <option value="BIOS">BIOS</option>
+                                        <option value="Cardio Imagenes">Cardio Imágenes</option>
+                                        <option value="CIMO">CIMO</option>
+                                        <option value="Clinica Imbanaco">Clínica Imbanaco</option>
+                                        <option value="Clinica La Estancia">Clínica La Estancia</option>
+                                        <option value="Clinica San Rafael">Clínica San Rafael</option>
+                                        <option value="Clinica Santa Gracia">Clínica Santa Gracia</option>
+                                        <option value="Dumian">Dumian</option>
+                                        <option value="Fundacion Corazon y Pulmon">Fundación Corazón y Pulmón</option>
+                                        <option value="Gamanuclear">Gamanuclear</option>
+                                        <option value="Laboratorio Adriana Correa">Laboratorio Adriana Correa</option>
+                                        <option value="Previred">Previred</option>
+                                        <option value="Otros">Otros</option>
+                                    </select>
+
+                                    <label class="form-label small fw-bold">Tipo Paciente <span class="req-star text-danger d-none">*</span></label>
+                                    <select name="bulk_patient_type" id="bulk_patient_type" class="form-select">
+                                        <option value="" selected class="text-muted">-- Mantener actual --</option>
+                                        <option value="INCIDENTE">INCIDENTE</option>
+                                        <option value="PREVALENTE">PREVALENTE</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- COLUMNA 3: GESTIÓN -->
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-success border-bottom-0">
+                                    <i class="fas fa-clipboard-check me-1"></i> 3. Bitácora
+                                </div>
+                                <div class="card-body pt-0">
+                                    <label class="form-label small fw-bold text-danger">Barrera de Acceso</label>
+                                    <select name="bulk_barrier" class="form-select mb-3">
+                                        <option value="" selected class="text-muted">-- Mantener actual --</option>
+                                        <option value="">(Quitar Barrera)</option>
+                                        <option value="No contesta">No contesta</option>
+                                        <option value="Sin convenio">Sin convenio</option>
+                                        <option value="Orden vencida">Orden vencida</option>
+                                        <option value="Falta autorización">Falta autorización</option>
+                                        <option value="Agenda cerrada">Agenda cerrada</option>
+                                        <option value="Paciente no acepta">Paciente no acepta</option>
+                                        <option value="Reprogramado">Reprogramado</option>
+                                        <option value="Domicilio lejano">Domicilio lejano</option>
+                                        <option value="Fallecido">Fallecido</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+
+                                    <label class="form-label small fw-bold text-success">Nota Masiva</label>
+                                    <textarea name="bulk_observation" class="form-control" rows="4" placeholder="Esta nota se agregará al historial de TODOS los pacientes seleccionados..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
                     
                     <div class="modal-footer border-0 bg-light py-3">
                         <button type="button" class="btn btn-lg btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
@@ -664,4 +665,14 @@
     </script>
 </body>
 </html>
+{% endblock %}
+{% block help_content %}
+    <h5 class="text-primary fw-bold mb-3">Tablero de Control</h5>
+    <p>Esta es la pantalla principal de operación. Aquí puedes:</p>
+    <ul class="list-group list-group-flush small">
+        <li class="list-group-item"><i class="fas fa-filter text-muted me-2"></i> <strong>Filtrar:</strong> Usa los selectores de arriba para buscar por EPS, Estado o Procedimiento.</li>
+        <li class="list-group-item"><i class="fas fa-check-square text-muted me-2"></i> <strong>Gestión Masiva:</strong> Selecciona varios pacientes con las casillas ☑️ para cambiar su estado al tiempo.</li>
+        <li class="list-group-item"><i class="fas fa-pen text-muted me-2"></i> <strong>Editar:</strong> Usa el lápiz amarillo para gestionar un caso individualmente.</li>
+        <li class="list-group-item"><i class="fas fa-file-excel text-muted me-2"></i> <strong>Exportar:</strong> Descarga el reporte en Excel con los filtros que tengas aplicados.</li>
+    </ul>
 {% endblock %}

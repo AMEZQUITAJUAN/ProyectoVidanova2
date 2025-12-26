@@ -177,7 +177,15 @@
         <!-- BARRA SUPERIOR (HEADER) -->
         <div class="d-flex justify-content-between align-items-center mb-4 pt-2 pb-2 border-bottom">
             <!-- Título de la Página (Dinámico) -->
-            <h4 class="mb-0 text-primary fw-bold">{% block page_header %}Gestión Vidanova{% endblock %}</h4>
+            <!-- Título y Ayuda Contextual -->
+            <div class="d-flex align-items-center gap-2">
+                <h4 class="mb-0 text-primary fw-bold">{% block page_header %}Gestión Vidanova{% endblock %}</h4>
+                
+                <!-- Botón de Ayuda Contextual -->
+                <button type="button" class="btn btn-link text-warning p-0" data-bs-toggle="modal" data-bs-target="#contextHelpModal" title="¿Qué puedo hacer aquí?">
+                    <i class='bx bxs-help-circle fs-4'></i>
+                </button>
+            </div>
             
             <!-- CAMPANA DE NOTIFICACIONES -->
             <div class="dropdown">
@@ -403,6 +411,31 @@
             <div class="modal-footer border-0">
                 <small class="text-muted me-auto">Soporte Técnico: Contactar al Administrador</small>
                 <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Entendido</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- === MODAL DE AYUDA CONTEXTUAL === -->
+<div class="modal fade" id="contextHelpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-warning text-dark border-0">
+                <h5 class="modal-title fw-bold"><i class="bx bxs-bulb me-2"></i>Guía Rápida</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-white p-4">
+                
+                <!-- AQUÍ SE INYECTA EL TEXTO DE CADA PÁGINA -->
+                {% block help_content %}
+                    <p class="text-muted text-center">
+                        <i class="bx bx-info-circle fs-1 mb-2"></i><br>
+                        Selecciona una opción del menú para ver su ayuda específica.
+                    </p>
+                {% endblock %}
+                
+            </div>
+            <div class="modal-footer border-0 bg-light py-2">
+                <small class="text-muted ms-auto">Sistema Vidanova v1.0</small>
             </div>
         </div>
     </div>

@@ -107,3 +107,19 @@
     </div>
 </div>
 {% endblock %}
+{% block help_content %}
+    <h5 class="text-primary fw-bold mb-3">Carga Masiva de Datos</h5>
+    <p>Aquí alimentas el sistema con los archivos de las aseguradoras.</p>
+    
+    <div class="alert alert-info small">
+        <strong>Formatos soportados:</strong> Excel (.xlsx) y Archivos Planos (.csv).
+    </div>
+
+    <h6>¿Qué hace el sistema?</h6>
+    <ol class="small">
+        <li>Detecta automáticamente si es un archivo de Ana, Andrea o SIISA.</li>
+        <li>Busca pacientes existentes por cédula.</li>
+        <li><strong>Lógica Inteligente:</strong> Si el paciente ya existe, actualiza sus datos. Si es un seguimiento nuevo, lo crea.</li>
+        <li>Aprende códigos CUPS nuevos automáticamente.</li>
+    </ol>
+{% endblock %}

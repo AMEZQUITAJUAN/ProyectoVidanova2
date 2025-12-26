@@ -9,10 +9,20 @@
     <!-- Encabezado -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="fw-bold text-primary"><i class="fas fa-tags me-2"></i>Maestro de Procedimientos (CUPS)</h3>
-            <p class="text-muted">Busca palabras clave (ej: "Paliativo") y clasifica masivamente.</p>
+            <h3 class="fw-bold text-primary"><i class="fas fa-tags me-2"></i>Maestro de Procedimientos</h3>
+            <p class="text-muted">Busca palabras clave y clasifica masivamente.</p>
         </div>
-        <span class="badge bg-warning text-dark fs-5">Pendientes: {{ total_pendientes }}</span>
+        
+        <div class="d-flex gap-2">
+            <!-- BOTÓN DE APRENDIZAJE (El que pediste) -->
+            <a href="{% url 'sembrar_cups' %}" class="btn btn-outline-success">
+                <i class="fas fa-seedling me-2"></i> Aprender de Datos Actuales
+            </a>
+            
+            <span class="badge bg-warning text-dark fs-6 d-flex align-items-center">
+                Pendientes: {{ total_pendientes }}
+            </span>
+        </div>
     </div>
 
     <!-- BARRA DE HERRAMIENTAS (Buscador y Filtros) -->
@@ -76,7 +86,8 @@
                                 <input type="checkbox" class="form-check-input" id="selectAll">
                             </th>
                             <th>Código</th>
-                            <th>Descripción</th>
+                            <!-- CAMBIO AQUÍ: Nombre más claro -->
+                            <th>Servicio / Descripción (Origen)</th>
                             <th>Categoría Actual</th>
                         </tr>
                     </thead>

@@ -200,3 +200,25 @@
     });
 </script>
 {% endblock %}
+{% block help_content %}
+    <h5 class="text-primary fw-bold mb-3">Análisis Gerencial</h5>
+    <p>Tablero estratégico para la toma de decisiones.</p>
+    
+    <div class="row g-2 small">
+        <div class="col-6">
+            <div class="p-2 border rounded bg-light">
+                <strong>Barreras:</strong> Muestra qué problemas administrativos están frenando la operación.
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="p-2 border rounded bg-light">
+                <strong>Top EPS:</strong> Muestra el volumen de solicitudes por aseguradora.
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="p-2 border rounded bg-light">
+                <strong>Tendencia:</strong> La línea de tiempo muestra si la carga de trabajo está subiendo o bajando mes a mes.
+            </div>
+        </div>
+    </div>
+{% endblock %}
