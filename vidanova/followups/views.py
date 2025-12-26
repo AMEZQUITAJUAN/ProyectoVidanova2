@@ -129,7 +129,36 @@ def followup_dashboard(request):
     # 5. Listas para Dropdowns
     eps_options = FollowUp.objects.exclude(entidad_aseguradora__isnull=True).exclude(entidad_aseguradora='').values_list('entidad_aseguradora', flat=True).distinct().order_by('entidad_aseguradora')
     barrier_options = FollowUp.objects.exclude(barrera__isnull=True).exclude(barrera='').values_list('barrera', flat=True).distinct().order_by('barrera')
-    agrupador_options = FollowUp.objects.exclude(agrupador__isnull=True).exclude(agrupador='').values_list('agrupador', flat=True).distinct().order_by('agrupador')
+    # agrupador_options = FollowUp.objects.exclude(agrupador__isnull=True).exclude(agrupador='').values_list('agrupador', flat=True).distinct().order_by('agrupador')
+    # Usamos una lista fija para que el usuario siempre vea todas las opciones posibles
+    agrupador_options = [
+        "1= CAC Mama",
+        "2= CAC Próstata",
+        "3= CAC Cérvix",
+        "4= CAC Colorectal",
+        "5= CAC Estómago",
+        "6= CAC Melanoma",
+        "7= CAC Pulmón",
+        "8= CAC Linfoma Hodgkin",
+        "9= CAC Linfoma No Hodgkin",
+        "10= CAC Leucemia Linfocítica Aguda",
+        "11= CAC Leucemia Mielocítica Aguda",
+        "12= Labio, cavidad bucal y faringe",
+        "13= Otros órganos digestivos",
+        "14= Otros órganos respiratorios e intratorácicos",
+        "15= Huesos y cartílagos articulares",
+        "16= Otros tumores de la piel",
+        "17= Tejidos mesoteliales y blandos",
+        "18= Otros órganos genitales femeninos",
+        "19= Otros órganos genitales masculinos",
+        "20= Vías urinarias (Riñón/Vejiga)",
+        "21= Ojo, encéfalo y sistema nervioso central",
+        "22= Glándulas tiroides y endocrinas",
+        "23= Sitios mal definidos / No especificados",
+        "24= Otros tumores tejido linfático/hematopoyético",
+        "25= Tumores secundarios",
+        "Otros Diagnósticos"
+    ]
 
     # 6. Estadísticas (Sobre el queryset ya filtrado)
     grand_total = FollowUp.objects.count()
@@ -374,17 +403,24 @@ def actualizacion_masiva(request):
         # 1. Captura de todos los campos del Modal
         nuevo_estado = request.POST.get('bulk_status')
         nueva_fecha_cita = request.POST.get('bulk_date_cita')
-        nueva_fecha_solicitud = request.POST.get('bulk_date_solicitud') # <--- NUEVO
+        nueva_fecha_solicitud = request.POST.get('bulk_date_solicitud')
         
         nuevo_tipo_paciente = request.POST.get('bulk_patient_type')
         nuevo_prestador = request.POST.get('bulk_provider')
-        nueva_barrera = request.POST.get('bulk_barrier') # <--- NUEVO
+        nueva_barrera = request.POST.get('bulk_barrier')
         
         nueva_nota = request.POST.get('bulk_observation')
         
         if not ids_str:
             messages.warning(request, "⚠️ No se seleccionaron registros.")
             return redirect('followup_dashboard')
+
+        # --- VALIDACIÓN DE SEGURIDAD (NUEVO) ---
+        # Si marcan REALIZADO o AGENDADO, obligamos a que pongan fecha.
+        if nuevo_estado in ['REALIZADO', 'AGENDADO'] and not nueva_fecha_cita:
+            messages.error(request, "⛔ OPERACIÓN CANCELADA: Para cambiar a estado REALIZADO o AGENDADO, es OBLIGATORIO seleccionar una 'Fecha Cita'.")
+            return redirect('followup_dashboard')
+        # ---------------------------------------
 
         ids_list = ids_str.split(',')
         registros = FollowUp.objects.filter(id__in=ids_list)
@@ -554,46 +590,70 @@ def centro_alertas(request):
     return render(request, 'alerts_center.html', context)
 
 # --- 9. CONFIGURACIÓN Y MAESTROS ---
+
 @login_required
 def configuracion_cups(request):
     """
-    Permite a las jefas clasificar los códigos nuevos que el sistema detectó.
+    Gestión de CUPS: Búsqueda, Filtrado y Edición Masiva.
+    Permite clasificar múltiples códigos a la vez.
     """
-    # Si enviaron un formulario para clasificar
+    # 1. PROCESAR ACCIÓN MASIVA (POST)
     if request.method == 'POST':
-        cup_id = request.POST.get('cup_id')
-        nuevo_grupo = request.POST.get('new_group')
+        # Capturamos los checkboxes seleccionados (lista de IDs)
+        ids = request.POST.getlist('selected_cups') 
+        nuevo_grupo = request.POST.get('bulk_group')
         
-        if cup_id and nuevo_grupo:
-            # Actualizamos el maestro
-            MasterCUP.objects.filter(id=cup_id).update(grupo=nuevo_grupo)
-            messages.success(request, "✅ Código clasificado correctamente.")
-            return redirect('configuracion_cups')
+        if ids and nuevo_grupo:
+            # Actualización masiva eficiente
+            updated_count = MasterCUP.objects.filter(id__in=ids).update(grupo=nuevo_grupo)
+            messages.success(request, f"✅ Se clasificaron {updated_count} códigos correctamente como '{nuevo_grupo}'.")
+        else:
+            messages.warning(request, "⚠️ Debes seleccionar al menos un código y una categoría.")
+        
+        # Recargamos la página manteniendo los filtros limpios para ver el resultado
+        return redirect('configuracion_cups')
 
-    # Listar solo los pendientes
-    pendientes = MasterCUP.objects.filter(grupo='PENDIENTE').order_by('codigo')
+    # 2. QUERYSET BASE
+    # Ordenamos: Primero los pendientes, luego por código
+    queryset = MasterCUP.objects.all().order_by('grupo', 'codigo')
+
+    # 3. FILTROS (GET)
+    q_search = request.GET.get('q')     # Lo que escriben en el buscador
+    group_filter = request.GET.get('group') # El filtro de categoría
+
+    # A. Buscador
+    if q_search:
+        queryset = queryset.filter(
+            Q(codigo__icontains=q_search) | 
+            Q(descripcion__icontains=q_search)
+        )
     
-    # Opciones de categorías (Las mismas del modelo)
-    categorias = [
-        ('CONSULTA', 'Consulta Especializada'),
-        ('QUIMIOTERAPIA', 'Quimioterapia'),
-        ('RADIOTERAPIA', 'Radioterapia'),
-        ('CIRUGIA', 'Cirugía'),
-        ('IMAGEN', 'Imagenología'),
-        ('LABORATORIO', 'Laboratorio Clínico'),
-        ('DOLOR', 'Clínica del Dolor'),
-        ('ESTANCIA', 'Estancia / Hospitalización'),
-        ('DIAGNOSTICO', 'Procedimiento Diagnóstico'),
-        ('COMPLEMENTARIO', 'Servicio Complementario'),
-        ('ONCOLOGIA', 'Oncología General'),
-        ('OTROS', 'Otros'),
-    ]
+    # B. Filtro por Grupo
+    if group_filter:
+        queryset = queryset.filter(grupo=group_filter)
+    else:
+        # Si no hay filtro, por defecto priorizamos mostrar los PENDIENTES arriba
+        # (Aunque el order_by ya ayuda, esto es solo lógica visual)
+        pass
 
-    return render(request, 'config_cups.html', {
-        'pendientes': pendientes,
+    # 4. PAGINACIÓN
+    # Mostramos 50 códigos por página para que sea manejable
+    paginator = Paginator(queryset, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # 5. CONTEXTO
+    # Usamos las categorías definidas en el Modelo para no repetirlas aquí
+    categorias = MasterCUP.CATEGORIAS
+
+    context = {
+        'page_obj': page_obj,
         'categorias': categorias,
-        'total_pendientes': pendientes.count()
-    })
+        'q': q_search,
+        'current_group': group_filter,
+        'total_pendientes': MasterCUP.objects.filter(grupo='PENDIENTE').count()
+    }
+    return render(request, 'config_cups.html', context)
 
 # --- 10. UTILIDADES DE SISTEMA (BACKUP) ---
 @login_required

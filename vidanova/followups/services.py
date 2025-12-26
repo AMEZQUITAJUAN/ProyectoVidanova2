@@ -81,19 +81,44 @@ def normalizar_eps(val):
     return texto.replace(' EPS', '').replace(' SAS', '').strip()
 
 def obtener_agrupador(codigo_cie10):
+    """Calcula el Agrupador (25 Grupos CAC) basado en el código CIE10."""
     if not codigo_cie10: return None
     c = str(codigo_cie10).upper().replace('.', '').strip()
+    
+    # 1-7. PRINCIPALES
     if c.startswith('C50'): return "1= CAC Mama"
-    if c.startswith('C53') or c.startswith('D06'): return "3= CAC Cérvix"
     if c.startswith('C61'): return "2= CAC Próstata"
+    if c.startswith('C53') or c.startswith('D06'): return "3= CAC Cérvix"
     if c.startswith('C18') or c.startswith('C19') or c.startswith('C20') or c.startswith('C21'): return "4= CAC Colorectal"
     if c.startswith('C16'): return "5= CAC Estómago"
     if c.startswith('C43') or c.startswith('D03'): return "6= CAC Melanoma"
     if c.startswith('C33') or c.startswith('C34'): return "7= CAC Pulmón"
+    
+    # 8-11. HEMATO
     if c.startswith('C81'): return "8= CAC Linfoma Hodgkin"
-    if c.startswith('C82') or c.startswith('C83') or c.startswith('C84') or c.startswith('C85') or c.startswith('C88') or c.startswith('C96'): return "9= CAC Linfoma No Hodgkin"
-    if c == 'C910': return "10= CAC Leucemia Linfocitica Aguda"
-    if c.startswith('C92'): return "11= CAC Leucemia Mielocitica Aguda"
+    if c.startswith('C82') or c.startswith('C83') or c.startswith('C84') or c.startswith('C85') or c.startswith('C96'): return "9= CAC Linfoma No Hodgkin"
+    if c == 'C910': return "10= CAC Leucemia Linfocítica Aguda"
+    if c.startswith('C92'): return "11= CAC Leucemia Mielocítica Aguda"
+    
+    # 12-16. OTROS SITIOS COMUNES
+    if c.startswith('C0') or c.startswith('C10') or c.startswith('C11') or c.startswith('C12') or c.startswith('C13') or c.startswith('C14'): return "12= Labio, cavidad bucal y faringe"
+    if c.startswith('C15') or c.startswith('C17') or c.startswith('C22') or c.startswith('C23') or c.startswith('C24') or c.startswith('C25') or c.startswith('C26'): return "13= Otros órganos digestivos"
+    if c.startswith('C30') or c.startswith('C31') or c.startswith('C32') or c.startswith('C37') or c.startswith('C38') or c.startswith('C39'): return "14= Otros órganos respiratorios e intratorácicos"
+    if c.startswith('C40') or c.startswith('C41'): return "15= Huesos y cartílagos articulares"
+    if c.startswith('C44') or c.startswith('D04'): return "16= Otros tumores de la piel"
+
+    # 17-25. RESTO DE GRUPOS (NUEVOS)
+    if c.startswith('C45') or c.startswith('C46') or c.startswith('C47') or c.startswith('C48') or c.startswith('C49'): return "17= Tejidos mesoteliales y blandos"
+    if c.startswith('C51') or c.startswith('C52') or c.startswith('C54') or c.startswith('C55') or c.startswith('C56') or c.startswith('C57') or c.startswith('C58'): return "18= Otros órganos genitales femeninos"
+    if c.startswith('C60') or c.startswith('C62') or c.startswith('C63'): return "19= Otros órganos genitales masculinos"
+    if c.startswith('C64') or c.startswith('C65') or c.startswith('C66') or c.startswith('C67') or c.startswith('C68'): return "20= Vías urinarias (Riñón/Vejiga)"
+    if c.startswith('C69') or c.startswith('C70') or c.startswith('C71') or c.startswith('C72'): return "21= Ojo, encéfalo y sistema nervioso central"
+    if c.startswith('C73') or c.startswith('C74') or c.startswith('C75'): return "22= Glándulas tiroides y endocrinas"
+    if c.startswith('C76') or c.startswith('C80'): return "23= Sitios mal definidos / No especificados"
+    if c.startswith('C88') or c.startswith('C90') or c.startswith('C91') or c.startswith('C93') or c.startswith('C94') or c.startswith('C95'): 
+        if c != 'C910': return "24= Otros tumores tejido linfático/hematopoyético"
+    if c.startswith('C77') or c.startswith('C78') or c.startswith('C79'): return "25= Tumores secundarios"
+
     return "Otros Diagnósticos"
 
 def calcular_procedimiento(cups_raw, texto_raw):

@@ -415,7 +415,7 @@
         <!-- AGREGADO: modal-xl para que sea ancha y cómoda -->
         <div class="modal-dialog modal-dialog-centered modal-xl"> 
             <div class="modal-content border-0 shadow-lg">
-                <form action="{% url 'actualizacion_masiva' %}" method="POST">
+                <form id="formMasivo" action="{% url 'actualizacion_masiva' %}" method="POST">
                     {% csrf_token %}
                     <input type="hidden" name="selected_ids" id="hiddenIdsInput">
 
@@ -533,9 +533,9 @@
                     
                     <div class="modal-footer border-0 bg-light py-3">
                         <button type="button" class="btn btn-lg btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-lg btn-primary fw-bold px-5 shadow-sm">
-                            <i class="fas fa-save me-2"></i> Aplicar Cambios
-                        </button>
+                        <button type="button" class="btn btn-lg btn-primary fw-bold px-5 shadow-sm" onclick="validarYEnviar()">
+    <i class="fas fa-save me-2"></i> Aplicar Cambios
+</button>
                     </div>
                 </form>
             </div>
@@ -633,6 +633,34 @@
             });
         }
     });
+
+    // --- NUEVA FUNCIÓN DE VALIDACIÓN SIN RECARGA ---
+    function validarYEnviar() {
+        const statusSelect = document.querySelector('select[name="bulk_status"]');
+        const dateInput = document.querySelector('input[name="bulk_date_cita"]');
+        const form = document.getElementById('formMasivo'); // Asegúrate de ponerle id="formMasivo" al <form> del modal
+
+        const estado = statusSelect.value;
+        const fecha = dateInput.value;
+
+        // Limpiar errores previos
+        statusSelect.classList.remove('is-invalid');
+        dateInput.classList.remove('is-invalid');
+
+        // REGLA: Si es REALIZADO o AGENDADO, exige fecha
+        if ((estado === 'REALIZADO' || estado === 'AGENDADO') && !fecha) {
+            alert("⚠️ ALERTA:\n\nPara marcar como REALIZADO o AGENDADO, es obligatorio seleccionar una 'Fecha Cita'.");
+            
+            // Resaltar en rojo los campos
+            statusSelect.classList.add('is-invalid');
+            dateInput.classList.add('is-invalid');
+            dateInput.focus();
+            return; // DETIENE EL ENVÍO (No se recarga la página)
+        }
+
+        // Si todo está bien, enviamos
+        form.submit();
+    }
     </script>
 </body>
 </html>
