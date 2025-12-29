@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -114,12 +115,21 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
+# --- CONFIGURACIÓN ESTÁTICA PARA PRODUCCIÓN ---
 STATIC_URL = '/static/'
 
 import os
+
+# 1. Dónde están tus estilos ahora (Desarrollo)
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
+
+# 2. Dónde los pondrá Django para el servidor (Producción)
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# 3. Motor de almacenamiento (Estándar)
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Media files (uploads)
 MEDIA_URL = '/media/'
