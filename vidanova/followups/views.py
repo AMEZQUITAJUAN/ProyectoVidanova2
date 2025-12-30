@@ -348,7 +348,12 @@ def editar_followup(request, pk):
                 historial_previo = followup.observaciones or ""
                 followup.observaciones = f"{entrada_bitacora}\n{historial_previo}"
             
-            form.save()
+            # (Django guarda el campo observaciones modificado automáticamente)
+            # --- FIRMAR LA EDICIÓN ---
+            registro = form.save(commit=False) # Pausa el guardado
+            registro.usuario_actualizacion = request.user # Ponemos el sello
+            registro.save() # Guardamos de verdad
+
             messages.success(request, f"Gestión de {followup.patient.nombre_completo} registrada.")
             return redirect('followup_dashboard')
     else:
@@ -395,7 +400,8 @@ def eliminar_followup(request, pk):
 @login_required
 def actualizacion_masiva(request):
     """
-    Procesa acciones masivas: Estado, Fechas, Clasificación, Barreras y Bitácora.
+    Procesa acciones masivas: Estado, Fechas, Clasificación, Barreras, Bitácora y Firma.
+    VERSIÓN CORREGIDA Y UNIFICADA.
     """
     if request.method == 'POST':
         ids_str = request.POST.get('selected_ids', '')
@@ -404,83 +410,69 @@ def actualizacion_masiva(request):
         nuevo_estado = request.POST.get('bulk_status')
         nueva_fecha_cita = request.POST.get('bulk_date_cita')
         nueva_fecha_solicitud = request.POST.get('bulk_date_solicitud')
-        
         nuevo_tipo_paciente = request.POST.get('bulk_patient_type')
         nuevo_prestador = request.POST.get('bulk_provider')
         nueva_barrera = request.POST.get('bulk_barrier')
-        
         nueva_nota = request.POST.get('bulk_observation')
         
         if not ids_str:
             messages.warning(request, "⚠️ No se seleccionaron registros.")
             return redirect('followup_dashboard')
 
-        # --- VALIDACIÓN DE SEGURIDAD (NUEVO) ---
-        # Si marcan REALIZADO o AGENDADO, obligamos a que pongan fecha.
+        # Validación de seguridad
         if nuevo_estado in ['REALIZADO', 'AGENDADO'] and not nueva_fecha_cita:
-            messages.error(request, "⛔ OPERACIÓN CANCELADA: Para cambiar a estado REALIZADO o AGENDADO, es OBLIGATORIO seleccionar una 'Fecha Cita'.")
+            messages.error(request, "⛔ OPERACIÓN CANCELADA: Para cambiar a REALIZADO o AGENDADO, la fecha es obligatoria.")
             return redirect('followup_dashboard')
-        # ---------------------------------------
 
         ids_list = ids_str.split(',')
         registros = FollowUp.objects.filter(id__in=ids_list)
         count = registros.count()
         updated_objs = []
+        
+        # Lista dinámica de campos a guardar (Siempre incluimos al usuario)
+        fields_to_update = ['usuario_actualizacion']
 
         usuario = request.user.username.title()
         ahora = timezone.now().strftime("%d/%m/%Y %H:%M")
 
-        # 2. Aplicar cambios en memoria
+        # 2. Determinar qué columnas vamos a tocar en la BD
+        if nuevo_estado: fields_to_update.append('estado_solicitud')
+        if nueva_fecha_cita: fields_to_update.append('fecha_cita')
+        if nueva_fecha_solicitud: fields_to_update.append('fecha_solicitud_cita')
+        if nuevo_tipo_paciente: fields_to_update.append('tipo_paciente')
+        if nuevo_prestador: fields_to_update.append('prestador')
+        if nueva_barrera: fields_to_update.append('barrera')
+        if nueva_nota: fields_to_update.append('observaciones')
+
+        # Si no llenaron nada en el modal (solo dieron aplicar vacio), no hacemos nada
+        if len(fields_to_update) == 1: 
+            messages.info(request, "No se seleccionaron cambios para aplicar.")
+            return redirect('followup_dashboard')
+
+        # 3. Aplicar cambios a los objetos en memoria
         for r in registros:
-            cambios = False
-
-            if nuevo_estado:
-                r.estado_solicitud = nuevo_estado
-                cambios = True
-            
-            if nueva_fecha_cita:
-                r.fecha_cita = nueva_fecha_cita
-                cambios = True
-
-            if nueva_fecha_solicitud:
-                r.fecha_solicitud_cita = nueva_fecha_solicitud
-                cambios = True
-                
-            if nuevo_tipo_paciente:
-                r.tipo_paciente = nuevo_tipo_paciente
-                cambios = True
-                
-            if nuevo_prestador:
-                r.prestador = nuevo_prestador
-                cambios = True
-
-            if nueva_barrera:
-                r.barrera = nueva_barrera
-                cambios = True
+            # Aplicamos solo si el dato existe
+            if nuevo_estado: r.estado_solicitud = nuevo_estado
+            if nueva_fecha_cita: r.fecha_cita = nueva_fecha_cita
+            if nueva_fecha_solicitud: r.fecha_solicitud_cita = nueva_fecha_solicitud
+            if nuevo_tipo_paciente: r.tipo_paciente = nuevo_tipo_paciente
+            if nuevo_prestador: r.prestador = nuevo_prestador
+            if nueva_barrera: r.barrera = nueva_barrera
 
             if nueva_nota:
                 entrada = f"[{ahora} - {usuario} - MASIVO]: {nueva_nota}"
                 historial_previo = r.observaciones or ""
                 r.observaciones = f"{entrada}\n{historial_previo}"
-                cambios = True
             
-            if cambios:
-                updated_objs.append(r)
+            # Firmamos la actualización
+            r.usuario_actualizacion = request.user
+            
+            updated_objs.append(r)
 
-        # 3. Guardar en BD
+        # 4. Guardar en Base de Datos (Un solo golpe)
         if updated_objs:
-            fields = ['observaciones']
-            if nuevo_estado: fields.append('estado_solicitud')
-            if nueva_fecha_cita: fields.append('fecha_cita')
-            if nueva_fecha_solicitud: fields.append('fecha_solicitud_cita')
-            if nuevo_tipo_paciente: fields.append('tipo_paciente')
-            if nuevo_prestador: fields.append('prestador')
-            if nueva_barrera: fields.append('barrera')
-            
-            FollowUp.objects.bulk_update(updated_objs, fields)
+            FollowUp.objects.bulk_update(updated_objs, fields_to_update)
             messages.success(request, f"✅ Se actualizaron {count} pacientes correctamente.")
-        else:
-            messages.info(request, "No se aplicaron cambios.")
             
     return redirect('followup_dashboard')
 

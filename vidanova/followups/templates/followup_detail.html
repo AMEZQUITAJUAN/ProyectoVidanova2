@@ -10,7 +10,13 @@
             <h4 class="fw-bold text-primary mb-0">
                 <i class="fas fa-file-medical-alt me-2"></i>Detalle de Seguimiento
             </h4>
-            <p class="text-muted mb-0">ID Caso: #{{ followup.id }} | Actualizado: {{ followup.fecha_creacion|date:"d M Y" }}</p>
+            <p class="text-muted mb-0 small">
+    ID: #{{ followup.id }} | 
+    Actualizado: <strong>{{ followup.fecha_actualizacion|date:"d M Y H:i" }}</strong>
+    {% if followup.usuario_actualizacion %}
+        por <span class="text-primary fw-bold">{{ followup.usuario_actualizacion.username|title }}</span>
+    {% endif %}
+</p>
         </div>
         <div>
             <a href="{% url 'editar_followup' followup.id %}" class="btn btn-warning text-white me-2">

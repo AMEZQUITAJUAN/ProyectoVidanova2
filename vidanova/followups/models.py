@@ -2,6 +2,7 @@
 from django.db import models
 from patients.models import Patient
 from datetime import date
+from django.contrib.auth.models import User
 
 # --- EN FOLLOWUPS/MODELS.PY ---
 
@@ -71,6 +72,10 @@ class FollowUp(models.Model):
     mes_ordenamiento = models.CharField(max_length=50, null=True, blank=True)
     semana_ordenamiento = models.CharField(max_length=50, null=True, blank=True)
     agrupador = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    
+    # CAMPOS DE AUDITORÍA
+    usuario_actualizacion = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True) # Se actualiza solo cada vez que guardas
 
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
