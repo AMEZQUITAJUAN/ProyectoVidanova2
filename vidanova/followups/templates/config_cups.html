@@ -137,3 +137,20 @@
     });
 </script>
 {% endblock %}
+
+{% block help_content %}
+    <h5 class="text-primary fw-bold mb-3"><i class="fas fa-tags me-2"></i>Maestro de Procedimientos</h5>
+    <p>Aquí le "enseñas" al sistema cómo clasificar los códigos nuevos.</p>
+    
+    <ul class="list-group list-group-flush small">
+        <li class="list-group-item">
+            <strong>¿Qué son los Pendientes?</strong> Son códigos que llegaron en los archivos Excel y el sistema no sabe si son Consultas, Quimios, etc.
+        </li>
+        <li class="list-group-item">
+            <strong>Botón Aprender <i class="fas fa-seedling text-success"></i>:</strong> Escanea todos los datos cargados para encontrar códigos nuevos automáticamente.
+        </li>
+        <li class="list-group-item">
+            <strong>¿Cómo clasificar?</strong> Selecciona los códigos con la casilla ☑️, elige la categoría arriba (ej: "Laboratorio") y dale <strong>Aplicar</strong>.
+        </li>
+    </ul>
+{% endblock %}

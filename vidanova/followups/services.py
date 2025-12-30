@@ -438,7 +438,8 @@ def importar_archivo_masivo(file_path):
             ruta=limpiar_dato(getattr(row, 'ruta', None)),
             agrupador=agrupador_calc,
             prestador=prestador,
-            tipo_paciente=tipo_caso
+            tipo_paciente=tipo_caso,
+            servicio=texto_servicio
         ))
         existing_sigs.add(sig)
 

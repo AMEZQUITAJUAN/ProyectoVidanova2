@@ -153,3 +153,17 @@
     {% endif %}
 </div>
 {% endblock %}
+{% block help_content %}
+    <h5 class="text-danger fw-bold mb-3"><i class="bx bxs-bell-ring me-2"></i>Centro de Alertas</h5>
+    <p>Esta es tu sala de control de calidad. Aquí el sistema te avisa qué está mal.</p>
+    
+    <div class="alert alert-light border shadow-sm">
+        <h6><i class="fas fa-bug text-danger"></i> Inconsistencias de Fecha (Izquierda)</h6>
+        <p class="small mb-0">Son errores lógicos graves. Ejemplo: La fecha de cita es <em>anterior</em> a la fecha de solicitud. Debes corregir el dato.</p>
+    </div>
+
+    <div class="alert alert-light border shadow-sm mt-2">
+        <h6><i class="fas fa-hourglass-end text-warning"></i> Casos Vencidos (Derecha)</h6>
+        <p class="small mb-0">Pacientes que llevan más de <strong>30 días</strong> sin gestión y siguen pendientes. Úsalo para priorizar llamadas.</p>
+    </div>
+{% endblock %}

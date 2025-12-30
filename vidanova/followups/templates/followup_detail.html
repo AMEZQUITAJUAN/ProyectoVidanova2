@@ -67,9 +67,15 @@
                 <div class="card-body">
                     <div class="row align-items-center">
                         <div class="col-md-8">
-                            <h5 class="fw-bold text-primary">{{ followup.tipo_procedimiento }}</h5>
+                            <h5 class="fw-bold text-primary mb-2">{{ followup.tipo_procedimiento }}</h5>
                             <p class="mb-1"><span class="fw-bold">CUPS:</span> {{ followup.cups|default:"Sin código" }}</p>
-                            <p class="mb-0 text-muted small">{{ followup.diagnostico|default:"Sin diagnóstico registrado" }}</p>
+                            <!-- Muestra el Servicio (ej: HEMOGRAMA...) cortado a 60 letras. Si pasas el mouse, se ve completo. -->
+                            <!-- Descripción Detallada (Solo si es diferente al título) -->
+                            {% if followup.servicio and followup.servicio != followup.tipo_procedimiento %}
+                                <p class="mb-2 text-dark small fw-bold text-uppercase border-start border-3 border-info ps-2">
+                                    {{ followup.servicio }}
+                                </p>
+                            {% endif %}
                         </div>
                         <div class="col-md-4 text-end">
                             <div class="mb-2">Estado Actual:</div>
@@ -133,4 +139,28 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block help_content %}
+    <h5 class="text-primary fw-bold mb-3"><i class="fas fa-id-card me-2"></i>Hoja de Vida del Trámite</h5>
+    <p>Esta vista te muestra el detalle profundo de <strong>una sola solicitud</strong>.</p>
+    
+    <div class="row g-2 small">
+        <div class="col-12">
+            <strong>Línea de Tiempo:</strong> Muestra la historia cronológica de todo lo que ha pasado con este trámite (notas, cambios de estado).
+        </div>
+        <div class="col-6">
+            <div class="p-2 border rounded bg-light text-center">
+                <i class="fas fa-pen text-warning mb-1"></i><br>
+                <strong>Editar:</strong><br>Cambiar fechas o estado.
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="p-2 border rounded bg-light text-center">
+                <i class="fas fa-trash text-danger mb-1"></i><br>
+                <strong>Eliminar:</strong><br>Borrar este registro (Solo Admin).
+            </div>
+        </div>
+    </div>
+    <p class="small text-muted mt-3 mb-0">Usa esta vista para investigar a fondo un caso específico antes de llamar al paciente.</p>
 {% endblock %}

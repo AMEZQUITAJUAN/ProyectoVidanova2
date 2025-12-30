@@ -78,3 +78,25 @@
     .fc-event { cursor: pointer; border: none; }
 </style>
 {% endblock %}
+
+{% block help_content %}
+    <h5 class="text-primary fw-bold mb-3"><i class="far fa-calendar-alt me-2"></i>Agenda de Citas</h5>
+    <p>Visualización de la programación de pacientes.</p>
+    
+    <div class="alert alert-light border shadow-sm small">
+        <strong>¿Qué veo aquí?</strong><br>
+        Todas las citas que tienen fecha asignada (Estado: Agendado o Realizado) y las proyecciones de ciclos futuros.
+    </div>
+
+    <h6 class="fw-bold mt-3">Código de Colores:</h6>
+    <ul class="list-group list-group-flush small">
+        <li class="list-group-item"><span class="badge rounded-circle p-1 me-2" style="background:#3b82f6;"> </span> <strong>Azul:</strong> Consultas Médicas.</li>
+        <li class="list-group-item"><span class="badge rounded-circle p-1 me-2" style="background:#8b5cf6;"> </span> <strong>Morado:</strong> Quimioterapias / Tratamientos.</li>
+        <li class="list-group-item"><span class="badge rounded-circle p-1 me-2" style="background:#ef4444;"> </span> <strong>Rojo:</strong> Cirugías.</li>
+        <li class="list-group-item"><span class="badge rounded-circle p-1 me-2" style="background:#10b981;"> </span> <strong>Verde:</strong> Imágenes Diagnósticas.</li>
+    </ul>
+
+    <p class="small text-muted mt-3 mb-0">
+        <i class="fas fa-mouse-pointer"></i> Haz clic en cualquier evento para ir al detalle del paciente.
+    </p>
+{% endblock %}

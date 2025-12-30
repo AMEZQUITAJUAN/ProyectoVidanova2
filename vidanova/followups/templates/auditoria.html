@@ -132,3 +132,21 @@
     </div>
 </div>
 {% endblock %}
+
+{% block help_content %}
+    <h5 class="text-dark fw-bold mb-3"><i class="fas fa-search-dollar me-2"></i>Auditoría de Datos</h5>
+    <p>Herramienta técnica para detectar suciedad en la base de datos.</p>
+    
+    <div class="row g-2 small">
+        <div class="col-12">
+            <div class="p-2 border rounded bg-light border-danger border-start-0 border-end-0 border-top-0 border-3">
+                <strong>Posibles Duplicados:</strong> Muestra si el mismo paciente tiene el mismo procedimiento con la misma fecha de solicitud repetido varias veces (error de carga del Excel).
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="p-2 border rounded bg-light border-warning border-start-0 border-end-0 border-top-0 border-3">
+                <strong>Datos Incompletos:</strong> Registros que no tienen EPS o CUPS asignado (generalmente por errores en el mapeo de columnas del archivo original).
+            </div>
+        </div>
+    </div>
+{% endblock %}
